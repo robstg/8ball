@@ -14,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Master the Table | 8-Ball Pool Pro',
-  description: 'Elevate your 8-ball pool game with AI-powered shot analysis and precision training tools.',
+  description: 'Elevate your 8-ball pool game with Junior''s AI-powered shot analysis and precision training tools.',
   generator: 'v0.app',
   icons: {
     icon: [
