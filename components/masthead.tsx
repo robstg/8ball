@@ -51,7 +51,7 @@ export function Masthead() {
               <span className="text-primary">table.</span>
             </h1>
             <p className="mt-6 text-lg text-muted-foreground max-w-md leading-relaxed">
-              Your complete platform for 8-ball pool mastery. AI-powered analysis, pro techniques, and precision gear.
+              Your complete platform for 8-ball pool mastery. Juniors exoert analysis, pro techniques, and precision gear.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <button className="px-6 py-3 rounded-full bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors">
