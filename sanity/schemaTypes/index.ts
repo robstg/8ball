@@ -1,6 +1,7 @@
 import { type SchemaTypeDefinition } from 'sanity'
-import post from './post' // This links the file you just made
+import post from './post'
+import page from './page' // 1. Import it
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [post], // This tells Sanity to show it in the menu
+  types: [post, page], // 2. Add it here
 }
