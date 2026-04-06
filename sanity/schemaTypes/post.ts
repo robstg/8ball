@@ -16,6 +16,13 @@ export default defineType({
       type: 'slug',
       options: {source: 'title'},
     }),
+    // --- ADD THIS FIELD TO LINK CATEGORIES ---
+    defineField({
+      name: 'category',
+      title: 'Category',
+      type: 'reference',
+      to: [{type: 'category'}],
+    }),
     defineField({
       name: 'mainImage',
       title: 'Cover Photo',
