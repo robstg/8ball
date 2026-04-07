@@ -21,7 +21,7 @@ export function Header() {
         <Link href="/" className="flex items-center h-full">
           <div className="relative w-48 h-16"> 
             <Image 
-              src="/images/logo-transparent.png" 
+             src="/images/black%20logo.png"
               alt="Pot The Black Logo"
               fill
               className="object-contain object-left"
