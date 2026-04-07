@@ -38,10 +38,7 @@ export function Header() {
           <Link href="/about-us" className={linkStyle('/about-us')}>
             About
           </Link>
-          <Link href="/rules" className={linkStyle('/rules')}>
-            Rules
-          </Link>
-        </nav>
+         </nav>
 
       </div>
     </header>
