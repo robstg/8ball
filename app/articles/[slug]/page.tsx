@@ -2,12 +2,19 @@ import { client } from "@/sanity/lib/client";
 import { PortableText } from "@portabletext/react";
 import Link from "next/link";
 
-export default async function ArticlePage({ params }: { params: { slug: string } }) {
+// 1. Update the 'params' type to be a Promise
+export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+  
+  // 2. You MUST await the params here
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
+
+  // 3. Now use the "awaited" slug in your fetch
   const post = await client.fetch(`*[_type == "post" && slug.current == $slug][0]{
     title,
     body,
     "publishedAt": _createdAt
-  }`, { slug: params.slug });
+  }`, { slug: slug });
 
   if (!post) {
     return (
