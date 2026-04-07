@@ -55,9 +55,9 @@ export function Masthead({ latestPost }: { latestPost: any }) {
             
             <div className="mt-8 flex flex-wrap gap-4">
               <Link 
-                href={latestPost?.slug ? `/post/${latestPost.slug}` : "/articles"} 
-                className="px-8 py-4 rounded-full bg-primary text-background font-bold uppercase tracking-widest hover:scale-105 transition-transform"
-              >
+  href={latestPost?.slug ? `/articles/${latestPost.slug}` : "/articles"} 
+  className="px-8 py-4 rounded-full bg-primary text-background font-bold uppercase tracking-widest hover:scale-105 transition-transform"
+>
                 Read Masterclass
               </Link>
               <Link href="/about" className="px-8 py-4 rounded-full border border-white/10 font-bold uppercase tracking-widest hover:bg-white/5 transition-colors">
