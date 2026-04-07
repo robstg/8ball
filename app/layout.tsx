@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { Space_Grotesk, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { Header } from "@/components/header" // We are putting this back!
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({ 
@@ -26,10 +27,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-[#0a0a0a] text-white`}>
         
-        {/* WE REMOVED <Header /> FROM HERE. 
-            The "RACK" header is already inside your page.tsx, so you don't need this one. */}
+        {/* 1. Show Header on every page EXCEPT the Sanity Studio */}
+        {!isStudio && <Header />}
         
-        <div className={!isStudio ? "min-h-screen" : "h-screen overflow-hidden"}>
+        {/* 2. Add pt-20 ONLY if we aren't in the Studio. 
+               This stops the "Double Header" and keeps the Publish button visible. */}
+        <div className={!isStudio ? "pt-20 min-h-screen" : "h-screen overflow-hidden"}>
           {children}
         </div>
 
