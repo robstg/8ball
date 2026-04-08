@@ -92,7 +92,7 @@ export function Header() {
       </div>
       
       {/* 4. Bottom Spacer */}
-      <div className="h-10 w-full" />
+      <div className="h-2 w-full" />
     </header>
   )
 }
