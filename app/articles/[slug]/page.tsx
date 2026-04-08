@@ -30,7 +30,6 @@ const ptComponents = {
     },
   },
   block: {
-    // Balanced H2 - Impactful but readable
     h2: ({ children }: any) => (
       <h2 className="text-3xl md:text-5xl font-black italic uppercase mt-24 mb-10 text-white tracking-tighter leading-[0.9]">
         {children}
@@ -41,7 +40,6 @@ const ptComponents = {
         {children}
       </h3>
     ),
-    // Normal text - Optimized for wider reading
     normal: ({ children }: any) => (
       <p className="mb-8 text-gray-400 leading-relaxed text-xl font-light">
         {children}
@@ -77,10 +75,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    // Widened to 6xl for a more cinematic "broadcast" feel
     <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen">
       
-      {/* Article Meta */}
+      {/* 1. Article Meta */}
       <div className="flex items-center gap-4 mb-10">
         <span className="bg-green-500 text-[10px] font-black uppercase px-3 py-1 text-black tracking-widest">Masterclass</span>
         <span className="text-gray-600 text-[10px] font-bold uppercase tracking-[0.2em]">
@@ -88,36 +85,43 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </span>
       </div>
 
-      {/* Headline - Removed max-w-4xl so it can expand to full 6xl width */}
+      {/* 2. Headline */}
       <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full">
         {post.title}
       </h1>
 
+      {/* 3. Main Cover Image */}
       {post.mainImage && (
-        <div className="mb-24">
+        <div className="mb-24 w-full">
           <Image 
             src={urlFor(post.mainImage).url()} 
             alt={post.title} 
             width={2400} 
             height={1350} 
-            className="rounded-[3rem] border border-white/5 shadow-2xl transition-opacity duration-700"
+            className="rounded-[3rem] border border-white/5 shadow-2xl transition-opacity duration-700 w-full"
             priority
           />
         </div>
       )}
 
-      {/* 1. max-w-none on the main div removes the outer container limit.
-  2. prose-p:max-w-none removes the 'skinny' limit specifically from paragraphs.
-  3. prose-headings:max-w-none does the same for H2s and H3s.
-*/}
-<div className="prose prose-invert max-w-none prose-lg md:prose-xl 
-                prose-p:max-w-none 
-                prose-headings:max-w-none 
-                prose-p:leading-relaxed 
-                prose-strong:text-white 
-                prose-strong:font-bold">
-  <PortableText value={post.body} components={ptComponents} />
-</div>
+      {/* 4. The Body with "Nuclear" Width Overrides */}
+      <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl !max-w-none">
+        <style jsx global>{`
+          /* Forces all text blocks to ignore the 'skinny' 65ch limit */
+          .prose p, 
+          .prose h2, 
+          .prose h3, 
+          .prose ul, 
+          .prose ol,
+          .prose blockquote {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+        `}</style>
+        <PortableText value={post.body} components={ptComponents} />
+      </div>
+
+      {/* 5. Footer Navigation */}
       <div className="mt-40 pt-10 border-t border-white/5 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-700 hover:text-green-500 transition-colors">
           ← Back to Articles
