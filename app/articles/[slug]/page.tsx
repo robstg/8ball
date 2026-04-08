@@ -106,11 +106,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      {/* Body - max-w-none is key here to let text fill the 6xl container */}
-      <div className="prose prose-invert max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-strong:text-white prose-strong:font-bold prose-p:max-w-none prose-headings:max-w-none">
-        <PortableText value={post.body} components={ptComponents} />
-      </div>
-
+      {/* 1. max-w-none on the main div removes the outer container limit.
+  2. prose-p:max-w-none removes the 'skinny' limit specifically from paragraphs.
+  3. prose-headings:max-w-none does the same for H2s and H3s.
+*/}
+<div className="prose prose-invert max-w-none prose-lg md:prose-xl 
+                prose-p:max-w-none 
+                prose-headings:max-w-none 
+                prose-p:leading-relaxed 
+                prose-strong:text-white 
+                prose-strong:font-bold">
+  <PortableText value={post.body} components={ptComponents} />
+</div>
       <div className="mt-40 pt-10 border-t border-white/5 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-700 hover:text-green-500 transition-colors">
           ← Back to Articles
