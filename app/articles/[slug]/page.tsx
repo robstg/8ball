@@ -77,7 +77,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    // 1. Widened to 6xl for a more cinematic "broadcast" feel
+    // Widened to 6xl for a more cinematic "broadcast" feel
     <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen">
       
       {/* Article Meta */}
@@ -88,8 +88,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </span>
       </div>
 
-      {/* 2. Balanced Headline - Reduced size so it doesn't compress the layout */}
-      <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter max-w-4xl">
+      {/* Headline - Removed max-w-4xl so it can expand to full 6xl width */}
+      <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full">
         {post.title}
       </h1>
 
@@ -106,8 +106,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      {/* 3. The Body - Set to max-w-none so it uses the 6xl article container */}
-      <div className="prose prose-invert max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-strong:text-white prose-strong:font-bold">
+      {/* Body - max-w-none is key here to let text fill the 6xl container */}
+      <div className="prose prose-invert max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-strong:text-white prose-strong:font-bold prose-p:max-w-none prose-headings:max-w-none">
         <PortableText value={post.body} components={ptComponents} />
       </div>
 
