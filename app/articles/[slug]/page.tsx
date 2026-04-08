@@ -4,7 +4,6 @@ import { PortableText } from "@portabletext/react";
 import Image from "next/image";
 import Link from "next/link";
 
-// Custom "Manual" to style every piece of content coming from Sanity
 const ptComponents = {
   types: {
     image: ({ value }: any) => {
@@ -77,7 +76,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   return (
     <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen">
       
-      {/* 1. Article Meta */}
       <div className="flex items-center gap-4 mb-10">
         <span className="bg-green-500 text-[10px] font-black uppercase px-3 py-1 text-black tracking-widest">Masterclass</span>
         <span className="text-gray-600 text-[10px] font-bold uppercase tracking-[0.2em]">
@@ -85,12 +83,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </span>
       </div>
 
-      {/* 2. Headline */}
       <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full">
         {post.title}
       </h1>
 
-      {/* 3. Main Cover Image */}
       {post.mainImage && (
         <div className="mb-24 w-full">
           <Image 
@@ -104,24 +100,19 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      {/* 4. The Body with "Nuclear" Width Overrides */}
-      <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl !max-w-none">
-        <style jsx global>{`
-          /* Forces all text blocks to ignore the 'skinny' 65ch limit */
-          .prose p, 
-          .prose h2, 
-          .prose h3, 
-          .prose ul, 
-          .prose ol,
-          .prose blockquote {
-            max-width: 100% !important;
-            width: 100% !important;
-          }
-        `}</style>
+      {/* FIXED BODY SECTION */}
+      {/* We use '[&>p]:max-w-none' etc. to target the direct children of the prose without needing Styled-JSX */}
+      <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl 
+                      !max-w-none 
+                      [&>p]:max-w-none 
+                      [&>h2]:max-w-none 
+                      [&>h3]:max-w-none 
+                      [&>ul]:max-w-none 
+                      [&>ol]:max-w-none 
+                      [&>blockquote]:max-w-none">
         <PortableText value={post.body} components={ptComponents} />
       </div>
 
-      {/* 5. Footer Navigation */}
       <div className="mt-40 pt-10 border-t border-white/5 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-700 hover:text-green-500 transition-colors">
           ← Back to Articles
