@@ -32,7 +32,7 @@ export function Header() {
 
       {/* 2. Main Brand Bar (Tournament Green Felt Style) */}
       <div 
-        className="relative pt-8 pb-14 px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
+        className="relative pt-6 pb-16 px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -45,13 +45,13 @@ export function Header() {
 
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
           
-          {/* Logo Area */}
-          <Link href="/" className="relative w-56 h-14 transition-transform hover:scale-105"> 
+          {/* Logo Area - Adjusted for the Circular Logo */}
+          <Link href="/" className="relative w-32 h-32 md:w-40 md:h-40 -my-4 transition-transform hover:scale-105"> 
             <Image 
-              src="/images/black%20logo.png" 
+              src="/headerlogo.png" 
               alt="Pot The Black Logo"
               fill
-              className="object-contain object-left brightness-0 invert" 
+              className="object-contain" 
               priority
             />
           </Link>
