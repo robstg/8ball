@@ -1,22 +1,27 @@
-// ... (imports remain the same)
+import { client } from "@/sanity/lib/client";
+import { urlFor } from "@/sanity/lib/image";
+import { PortableText } from "@portabletext/react";
+import Image from "next/image";
+import Link from "next/link";
 
+// Custom "Manual" to style every piece of content coming from Sanity
 const ptComponents = {
   types: {
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null;
       return (
         <div className="my-16 group">
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl">
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 shadow-2xl transition-transform duration-500 group-hover:scale-[1.01]">
             <Image
               src={urlFor(value).url()}
               alt={value.alt || "Pot The Black Masterclass"}
-              width={2000} // Set for high-res wide layout
-              height={1000}
+              width={2000} 
+              height={1125}
               className="h-auto w-full object-cover"
             />
           </div>
           {value.caption && (
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 mt-6 italic text-center uppercase">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 mt-6 italic text-center">
               {value.caption}
             </p>
           )}
@@ -25,9 +30,9 @@ const ptComponents = {
     },
   },
   block: {
-    // Balanced H2 - Impactful but not overwhelming
+    // Balanced H2 - Impactful but readable
     h2: ({ children }: any) => (
-      <h2 className="text-3xl md:text-5xl font-black italic uppercase mt-20 mb-8 text-white tracking-tighter leading-[0.9]">
+      <h2 className="text-3xl md:text-5xl font-black italic uppercase mt-24 mb-10 text-white tracking-tighter leading-[0.9]">
         {children}
       </h2>
     ),
@@ -36,17 +41,23 @@ const ptComponents = {
         {children}
       </h3>
     ),
-    // Normal text - Increased for readability on wide screens
+    // Normal text - Optimized for wider reading
     normal: ({ children }: any) => (
       <p className="mb-8 text-gray-400 leading-relaxed text-xl font-light">
         {children}
       </p>
+    ),
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-8 border-green-500 pl-8 my-16 italic text-3xl font-medium text-white/90 leading-snug">
+        {children}
+      </blockquote>
     ),
   },
 };
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+
   const post = await client.fetch(`*[_type == "post" && slug.current == $slug][0]{
     title,
     body,
@@ -54,10 +65,19 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     "publishedAt": _createdAt
   }`, { slug });
 
-  if (!post) return <div className="bg-black text-white p-20">Article not found</div>;
+  if (!post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white font-black uppercase tracking-widest">
+        <div className="text-center">
+          <h1 className="text-xl">Article not found</h1>
+          <Link href="/" className="text-green-500 underline mt-4 block text-xs">Return to Table</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    // 1. Widened to 6xl (1152px) for a much fuller screen feel
+    // 1. Widened to 6xl for a more cinematic "broadcast" feel
     <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen">
       
       {/* Article Meta */}
@@ -68,7 +88,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </span>
       </div>
 
-      {/* 2. Headline - Reduced from 9xl to 7xl to stop it from "compressing" the layout */}
+      {/* 2. Balanced Headline - Reduced size so it doesn't compress the layout */}
       <h1 className="text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter max-w-4xl">
         {post.title}
       </h1>
@@ -78,16 +98,16 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <Image 
             src={urlFor(post.mainImage).url()} 
             alt={post.title} 
-            width={2000} 
-            height={1125} 
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
+            width={2400} 
+            height={1350} 
+            className="rounded-[3rem] border border-white/5 shadow-2xl transition-opacity duration-700"
             priority
           />
         </div>
       )}
 
-      {/* 3. The Body - Setting max-w-none to let it fill the 6xl container */}
-      <div className="prose prose-invert max-w-none prose-lg md:prose-xl">
+      {/* 3. The Body - Set to max-w-none so it uses the 6xl article container */}
+      <div className="prose prose-invert max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-strong:text-white prose-strong:font-bold">
         <PortableText value={post.body} components={ptComponents} />
       </div>
 
