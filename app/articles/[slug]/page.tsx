@@ -4,13 +4,14 @@ import { PortableText } from "@portabletext/react";
 import Image from "next/image";
 import Link from "next/link";
 
-// This is the "brain" of your article. It tells Next.js how to handle 
-// images, headers, and your custom HTML/Amazon code.
+// This is the "brain" of your article. 
+// It tells Next.js how to handle images, headers, and your custom HTML/Amazon code.
 const ptComponents = {
   types: {
-    // THIS IS THE NEW BIT: Handles your Amazon / HTML Embeds
+    // This handles your Amazon / HTML Embeds
     code: ({ value }: any) => {
-      if (value.language === 'html') {
+      // Check if the language is set to HTML and if we actually have code content
+      if (value?.language === 'html' && value?.code) {
         return (
           <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-8 shadow-2xl flex justify-center">
             <div 
@@ -20,12 +21,15 @@ const ptComponents = {
           </div>
         );
       }
+      
+      // Fallback: If it's not HTML or it's just a regular code snippet
       return (
         <pre className="my-10 p-6 bg-zinc-900 rounded-xl border border-white/5 overflow-x-auto text-green-500 text-sm">
-          <code>{value.code}</code>
+          <code>{value?.code || 'No code provided'}</code>
         </pre>
       );
     },
+
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null;
       return (
@@ -75,12 +79,19 @@ const ptComponents = {
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // Fetching the post data from Sanity
+  // FETCHING DATA: This updated query pulls the 'code' and 'language' fields 
+  // out of the Portable Text array so the frontend can actually see them.
   const post = await client.fetch(`*[_type == "post" && slug.current == $slug][0]{
     title,
-    body,
     mainImage,
-    "publishedAt": _createdAt
+    "publishedAt": _createdAt,
+    body[]{
+      ...,
+      _type == "code" => {
+        code,
+        language
+      }
+    }
   }`, { slug });
 
   if (!post) {
@@ -88,7 +99,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white uppercase tracking-widest font-black">
         <div className="text-center">
           <h1 className="text-xl">Post not found</h1>
-          <Link href="/" className="text-green-500 underline mt-4 block text-xs">Return to Table</Link>
+          <Link href="/" className="text-green-500 underline mt-4 block text-xs font-bold uppercase">Return to Table</Link>
         </div>
       </div>
     );
@@ -115,7 +126,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             alt={post.title} 
             width={2400} 
             height={1350} 
-            className="rounded-[3rem] border border-white/5 shadow-2xl w-full"
+            className="rounded-[3rem] border border-white/5 shadow-2xl w-full h-auto"
             priority
           />
         </div>
