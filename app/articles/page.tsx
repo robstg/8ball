@@ -53,7 +53,7 @@ export default async function ArticlesPage() {
             ))
           ) : (
             <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-[3rem]">
-              <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No Masterclasses found yet.</p>
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No Masterclass found yet.</p>
             </div>
           )}
         </div>
