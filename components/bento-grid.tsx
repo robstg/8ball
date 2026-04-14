@@ -2,44 +2,16 @@
 
 import { motion } from "framer-motion"
 import { ShotAnalyzer } from "./shot-analyzer"
-import { Target, Zap, TrendingUp, Eye, ArrowUpRight } from "lucide-react"
-
-const techniques = [
-  {
-    id: 1,
-    title: "The Perfect Break",
-    description: "Master the opening shot that sets the tone for every game.",
-    category: "Fundamentals",
-    icon: Zap,
-  },
-  {
-    id: 2,
-    title: "Bank Shot Geometry",
-    description: "Use angles and physics to sink impossible shots.",
-    category: "Advanced",
-    icon: Target,
-  },
-  {
-    id: 3,
-    title: "Position Play",
-    description: "Think three shots ahead with strategic cue ball control.",
-    category: "Strategy",
-    icon: TrendingUp,
-  },
-  {
-    id: 4,
-    title: "Reading the Table",
-    description: "Develop the mental game that separates pros from amateurs.",
-    category: "Mental Game",
-    icon: Eye,
-  }
-]
+import { ArrowUpRight, Zap } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
+import { urlFor } from "@/sanity/lib/image"
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.08 }
+    transition: { staggerChildren: 0.1 }
   }
 }
 
@@ -52,19 +24,10 @@ const itemVariants = {
   }
 }
 
-export function BentoGrid() {
+// 1. ADD 'posts' AS A PROP HERE
+export function BentoGrid({ posts = [] }: { posts: any[] }) {
   return (
-    <section className="px-6 md:px-12 lg:px-20 pb-20">
-      {/* Section header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-6 bg-primary rounded-full" />
-          <h2 className="font-[family-name:var(--font-heading)] text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Featured Tools
-          </h2>
-        </div>
-      </div>
-
+    <section className="pb-20">
       <motion.div 
         className="grid grid-cols-1 lg:grid-cols-3 gap-4"
         variants={containerVariants}
@@ -72,39 +35,42 @@ export function BentoGrid() {
         whileInView="visible"
         viewport={{ once: true, margin: "-50px" }}
       >
-        {/* Main Feature - Shot Analyzer */}
+        {/* Keep your Shot Analyzer tool in the big slot */}
         <motion.div 
-          className="lg:col-span-2 lg:row-span-2 relative rounded-2xl border border-white/10 bg-card/40 backdrop-blur-sm p-6 lg:p-8 overflow-hidden"
+          className="lg:col-span-2 lg:row-span-2 relative rounded-2xl border border-slate-200 bg-white p-6 lg:p-8 overflow-hidden shadow-sm"
           variants={itemVariants}
         >
           <ShotAnalyzer />
         </motion.div>
 
-        {/* Technique Cards */}
-        {techniques.map((technique) => (
+        {/* 2. MAP OVER YOUR REAL POSTS INSTEAD OF THE HARDCODED LIST */}
+        {posts.map((post) => (
           <motion.article
-            key={technique.id}
-            className="group relative rounded-2xl border border-white/10 bg-card/40 backdrop-blur-sm p-6 cursor-pointer hover:bg-card/60 hover:border-white/20 transition-all duration-300"
+            key={post.slug?.current || post.title}
+            className="group relative rounded-2xl border border-slate-200 bg-white p-6 cursor-pointer hover:shadow-lg transition-all duration-300"
             variants={itemVariants}
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                <technique.icon className="w-5 h-5 text-primary" />
+            <Link href={`/articles/${post.slug?.current || post.slug}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-2.5 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <Zap className="w-5 h-5 text-green-600" />
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-            
-            <span className="text-xs font-medium text-primary uppercase tracking-wider">
-              {technique.category}
-            </span>
-            
-            <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold tracking-tight mt-2 group-hover:text-primary transition-colors">
-              {technique.title}
-            </h3>
-            
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              {technique.description}
-            </p>
+              
+              <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">
+                {post.category || "Masterclass"}
+              </span>
+              
+              <h3 className="text-xl font-black italic uppercase tracking-tighter mt-2 group-hover:text-green-600 transition-colors">
+                {post.title}
+              </h3>
+              
+              {/* Optional: Show a tiny bit of excerpt if it exists */}
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed line-clamp-2">
+                {post.excerpt || "Dive into this technical breakdown to sharpen your game."}
+              </p>
+            </Link>
           </motion.article>
         ))}
       </motion.div>
