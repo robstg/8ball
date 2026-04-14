@@ -4,6 +4,8 @@ import { BentoGrid } from "@/components/bento-grid"
 import { RulesFeature } from "@/components/rules-feature"
 import { GearShowcase } from "@/components/gear-showcase"
 import { BottomNav } from "@/components/bottom-nav"
+// THE MISSING PIECE:
+import Link from "next/link" 
 
 export default async function Home() {
   // We keep the query simple to ensure the rack is full
@@ -62,7 +64,6 @@ export default async function Home() {
         )}
       </div>
       
-      {/* These stay as they were */}
       <RulesFeature />
       <GearShowcase />
       <BottomNav />
