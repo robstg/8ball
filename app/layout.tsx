@@ -26,11 +26,15 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-950 text-slate-50`}>
+      {/* Rob's Note: Changed bg-slate-950 to bg-white and text-slate-50 to text-slate-900. 
+          This makes "Pot the Black" feel fresh, modern, and readable. 
+      */}
+      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-white text-slate-900`}>
         
         {!isStudio && <Header />}
         
-        <div className={!isStudio ? "pt-20 min-h-screen" : "h-screen overflow-hidden"}>
+        {/* Added a very light slate tint to the background wrapper for a clean, pro look */}
+        <div className={!isStudio ? "pt-20 min-h-screen bg-slate-50/50" : "h-screen overflow-hidden"}>
           {children}
         </div>
 
