@@ -6,7 +6,7 @@ import Link from "next/link";
 
 const ptComponents = {
   types: {
-    // --- 1. THE D1 UPGRADE: HANDLING AMAZON & HTML ---
+    // --- 1. THE D1 UPGRADEs: HANDLING AMAZON & HTML ---
     code: ({ value }: any) => {
       if (value.language === 'html') {
         return (
