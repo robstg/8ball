@@ -6,27 +6,35 @@ import { GearShowcase } from "@/components/gear-showcase"
 import { BottomNav } from "@/components/bottom-nav"
 
 export default async function Home() {
-  const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc){
+  // We grab the latest 5 posts. 
+  // We also grab the category title so you can show it in the Bento Grid.
+  const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc) [0...5] {
     title,
     "slug": slug.current,
     "excerpt": array::join(string::split(pt::text(body), "")[0..200], "") + "...",
-    mainImage
+    mainImage,
+    _createdAt,
+    "category": category->title
   }`)
 
+  // Your Masthead usually wants the very latest one
   const latestPost = posts[0]
 
   return (
-    /* Rob's Note: Swapped 'bg-background' to 'bg-slate-50' to force the light vibe. 
-       We're also removing any potential dark containers here. */
-    <main className="min-h-screen bg-slate-50 pb-28">
+    /* Rob's Note: Keep that light vibe, but ensure the text stays sharp (text-slate-900) */
+    <main className="min-h-screen bg-slate-50 text-slate-900 pb-28">
       
-      {/* CRITICAL: You need to go into these component files 
-          to remove their internal 'bg-black' or 'bg-slate-950' classes.
-      */}
-      
+      {/* The Big Shot: Shows off your #1 latest article */}
       <Masthead latestPost={latestPost} /> 
       
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-6 mt-12">
+        <div className="mb-8 border-b border-slate-200 pb-4">
+          <h2 className="text-xs uppercase tracking-[0.4em] font-black text-slate-400">
+            The Latest Breaks
+          </h2>
+        </div>
+        
+        {/* The Grid: This will now show the remaining 4 posts from your list */}
         <BentoGrid posts={posts} /> 
       </div>
       
