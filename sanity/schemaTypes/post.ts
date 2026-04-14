@@ -16,7 +16,6 @@ export default defineType({
       type: 'slug',
       options: {source: 'title'},
     }),
-    // --- ADD THIS FIELD TO LINK CATEGORIES ---
     defineField({
       name: 'category',
       title: 'Category',
@@ -29,23 +28,20 @@ export default defineType({
       type: 'image',
       options: {hotspot: true},
     }),
-defineField({
+    defineField({
       name: 'body',
       title: 'Content',
       type: 'array',
       of: [
         {
           type: 'block',
-          // 1. This adds the Heading dropdown (H2, H3) and Quote styles
           styles: [
             { title: 'Normal', value: 'normal' },
             { title: 'H2 (Big Header)', value: 'h2' },
             { title: 'H3 (Sub Header)', value: 'h3' },
             { title: 'Quote', value: 'blockquote' },
           ],
-          // 2. This adds Bullet points
           lists: [{ title: 'Bullet', value: 'bullet' }],
-          // 3. This adds Bold and Italic
           marks: {
             decorators: [
               { title: 'Strong', value: 'strong' },
@@ -53,7 +49,6 @@ defineField({
             ],
           },
         },
-        // 4. This adds the "+" button to drop images into the text
         {
           type: 'image',
           options: { hotspot: true },
@@ -70,6 +65,18 @@ defineField({
               title: 'Caption',
             }
           ]
+        },
+        // --- THE D1 UPGRADE: ADD THIS FOR AMAZON/HTML ---
+        {
+          type: 'code',
+          title: 'HTML / Product Embed',
+          options: {
+            language: 'html',
+            languageAlternatives: [
+              {title: 'HTML', value: 'html'},
+              {title: 'Javascript', value: 'javascript'}
+            ]
+          }
         }
       ],
     }),
