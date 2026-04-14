@@ -2,21 +2,20 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation' // Added useRouter
-import { useState } from 'react' // Added useState for the search input
-import { Search, User, Phone } from 'lucide-react' // Removed ShoppingCart
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { Search, User, Phone } from 'lucide-react'
 
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('') // State to hold search text
+  const [searchQuery, setSearchQuery] = useState('')
 
   const linkStyle = (path: string) => 
     pathname === path 
       ? "text-white border-b-2 border-green-400 pb-1" 
       : "text-white/80 hover:text-green-400 transition-colors pb-1"
 
-  // This handles the actual search redirection
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     if (searchQuery.trim()) {
@@ -26,7 +25,7 @@ export function Header() {
 
   return (
     <header className="w-full z-50 font-sans">
-      {/* 1. Top Utility Bar (Pure White) */}
+      {/* 1. Top Utility Bar */}
       <div className="bg-white py-2 px-6 border-b flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[#004d33]">
         <div className="flex items-center gap-2">
           <Phone size={12} />
@@ -41,9 +40,9 @@ export function Header() {
         </div>
       </div>
 
-      {/* 2. Main Brand Bar (Tournament Green Felt Style) */}
+      {/* 2. Main Brand Bar (Centered Layout) */}
       <div 
-        className="relative pt-6 pb-16 px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
+        className="relative pt-8 pb-20 px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -53,24 +52,31 @@ export function Header() {
           style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/felt.png')` }} 
         />
 
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col items-center relative z-10">
           
-          <Link href="/" className="relative w-32 h-32 md:w-40 md:h-40 -my-4 transition-transform hover:scale-105"> 
-            <Image 
-              src="/headerlogo.png" 
-              alt="Pot The Black Logo"
-              fill
-              className="object-contain" 
-              priority
-            />
-          </Link>
+          {/* Centered Logo / Site Name */}
+          <div className="flex flex-col items-center mb-8">
+            <Link href="/" className="relative w-32 h-32 md:w-40 md:h-40 transition-transform hover:scale-105"> 
+              <Image 
+                src="/headerlogo.png" 
+                alt="Pot The Black Logo"
+                fill
+                className="object-contain" 
+                priority
+              />
+            </Link>
+            {/* If your logo doesn't have text, you can add it here: */}
+            <span className="text-white font-black italic uppercase tracking-tighter text-2xl mt-2">
+              Pot The Black
+            </span>
+          </div>
 
-          <nav className="flex gap-8 text-[11px] font-black uppercase tracking-[0.15em]">
+          {/* Navigation - Centered below logo */}
+          <nav className="flex gap-12 text-[11px] font-black uppercase tracking-[0.2em]">
             <Link href="/" className={linkStyle('/')}>Home</Link>
             <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
             <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
             <Link href="/about-us" className={linkStyle('/about-us')}>About</Link>
-            <Link href="/clearance" className="text-yellow-400 hover:text-yellow-300 italic">Clearance</Link>
           </nav>
         </div>
 
@@ -83,19 +89,15 @@ export function Header() {
             <div className="flex-1 bg-white rounded-lg flex items-center px-4 py-2.5">
               <input 
                 type="text" 
-                placeholder="Search cues, tips, or videos..." 
+                placeholder="Search cues, tips, or masterclasses..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full text-sm outline-none text-black placeholder:text-gray-400 font-medium"
               />
-              <button 
-                type="submit"
-                className="text-[#004d33] hover:scale-110 transition-transform"
-              >
+              <button type="submit" className="text-[#004d33] hover:scale-110 transition-transform">
                 <Search size={20} strokeWidth={3} />
               </button>
             </div>
-            {/* Shopping Cart button removed */}
           </div>
         </form>
       </div>
