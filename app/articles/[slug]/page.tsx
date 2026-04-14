@@ -4,36 +4,28 @@ import { PortableText } from "@portabletext/react";
 import Image from "next/image";
 import Link from "next/link";
 
+// This is the "brain" of your article. It tells Next.js how to handle 
+// images, headers, and your custom HTML/Amazon code.
 const ptComponents = {
   types: {
-    // --- 1. THE D1 UPGRADEs: HANDLING AMAZON & HTML ---
+    // THIS IS THE NEW BIT: Handles your Amazon / HTML Embeds
     code: ({ value }: any) => {
       if (value.language === 'html') {
         return (
-          <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-8 shadow-2xl">
-            {/* This allows the Amazon widget to render. 
-                dangerouslySetInnerHTML is required for raw HTML strings from Sanity. 
-            */}
+          <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-8 shadow-2xl flex justify-center">
             <div 
-              className="flex justify-center mx-auto"
+              className="w-full max-w-full overflow-auto"
               dangerouslySetInnerHTML={{ __html: value.code }} 
             />
-            {value.filename && (
-              <p className="text-[10px] uppercase tracking-[0.3em] text-gray-600 mt-6 text-center">
-                {value.filename}
-              </p>
-            )}
           </div>
         );
       }
-      // Fallback for technical code snippets
       return (
-        <pre className="my-10 p-6 bg-zinc-900 rounded-xl border border-white/5 overflow-x-auto">
-          <code className="text-green-500 text-sm">{value.code}</code>
+        <pre className="my-10 p-6 bg-zinc-900 rounded-xl border border-white/5 overflow-x-auto text-green-500 text-sm">
+          <code>{value.code}</code>
         </pre>
       );
     },
-
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null;
       return (
@@ -83,6 +75,7 @@ const ptComponents = {
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
+  // Fetching the post data from Sanity
   const post = await client.fetch(`*[_type == "post" && slug.current == $slug][0]{
     title,
     body,
@@ -92,9 +85,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   if (!post) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white font-black uppercase tracking-widest">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white uppercase tracking-widest font-black">
         <div className="text-center">
-          <h1 className="text-xl">Article not found</h1>
+          <h1 className="text-xl">Post not found</h1>
           <Link href="/" className="text-green-500 underline mt-4 block text-xs">Return to Table</Link>
         </div>
       </div>
@@ -102,7 +95,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen font-inter">
+    <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 bg-[#0a0a0a] text-white min-h-screen">
       
       <div className="flex items-center gap-4 mb-10">
         <span className="bg-green-500 text-[10px] font-black uppercase px-3 py-1 text-black tracking-widest">Masterclass</span>
@@ -122,20 +115,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             alt={post.title} 
             width={2400} 
             height={1350} 
-            className="rounded-[3rem] border border-white/5 shadow-2xl transition-opacity duration-700 w-full"
+            className="rounded-[3rem] border border-white/5 shadow-2xl w-full"
             priority
           />
         </div>
       )}
 
-      <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl 
-                      !max-w-none 
-                      [&>p]:max-w-none 
-                      [&>h2]:max-w-none 
-                      [&>h3]:max-w-none 
-                      [&>ul]:max-w-none 
-                      [&>ol]:max-w-none 
-                      [&>blockquote]:max-w-none">
+      {/* RENDER THE BODY CONTENT */}
+      <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl !max-w-none">
         <PortableText value={post.body} components={ptComponents} />
       </div>
 
