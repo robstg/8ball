@@ -4,28 +4,30 @@ import { PortableText } from "@portabletext/react";
 import Image from "next/image";
 import Link from "next/link";
 
-// This is the "brain" of your article. 
-// It tells Next.js how to handle images, headers, and your custom HTML/Amazon code.
 const ptComponents = {
   types: {
-    // This handles your Amazon / HTML Embeds
+    // THE FIX: This handler is now much more aggressive to ensure your HTML renders.
     code: ({ value }: any) => {
-      // Check if the language is set to HTML and if we actually have code content
-      if (value?.language === 'html' && value?.code) {
+      if (!value?.code) return null;
+
+      // If it looks like HTML or the language is set to html, force render it.
+      const isHtml = value.language === 'html' || value.code.trim().startsWith('<');
+
+      if (isHtml) {
         return (
           <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-8 shadow-2xl flex justify-center">
             <div 
-              className="w-full max-w-full overflow-auto"
+              className="w-full max-w-full overflow-auto text-white"
               dangerouslySetInnerHTML={{ __html: value.code }} 
             />
           </div>
         );
       }
       
-      // Fallback: If it's not HTML or it's just a regular code snippet
+      // Fallback for regular programming code
       return (
         <pre className="my-10 p-6 bg-zinc-900 rounded-xl border border-white/5 overflow-x-auto text-green-500 text-sm">
-          <code>{value?.code || 'No code provided'}</code>
+          <code>{value.code}</code>
         </pre>
       );
     },
@@ -79,8 +81,7 @@ const ptComponents = {
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // FETCHING DATA: This updated query pulls the 'code' and 'language' fields 
-  // out of the Portable Text array so the frontend can actually see them.
+  // The query stays the same, ensuring we get the raw code string from Sanity.
   const post = await client.fetch(`*[_type == "post" && slug.current == $slug][0]{
     title,
     mainImage,
@@ -132,7 +133,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      {/* RENDER THE BODY CONTENT */}
       <div className="max-w-6xl w-full prose prose-invert prose-lg md:prose-xl !max-w-none">
         <PortableText value={post.body} components={ptComponents} />
       </div>
