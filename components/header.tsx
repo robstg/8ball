@@ -59,7 +59,8 @@ export function Header() {
           {/* Navigation */}
           <nav className="flex gap-8 text-[11px] font-black uppercase tracking-[0.15em]">
             <Link href="/" className={linkStyle('/')}>Home</Link>
-            <Link href="/pool-cues" className={linkStyle('/pool-cues')}>Pool Cues</Link>
+            <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
+                  <Link href="/snooker" className={linkStyle('/snooker')}>snooker</Link>
             <Link href="/articles" className={linkStyle('/articles')}>Masterclasses</Link>
             <Link href="/about-us" className={linkStyle('/about-us')}>About</Link>
             <Link href="/clearance" className="text-yellow-400 hover:text-yellow-300 italic">Clearance</Link>
