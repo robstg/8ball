@@ -1,11 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ShotAnalyzer } from "./shot-analyzer"
 import { ArrowUpRight, Zap } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
-import { urlFor } from "@/sanity/lib/image"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -24,26 +21,16 @@ const itemVariants = {
   }
 }
 
-// 1. ADD 'posts' AS A PROP HERE
 export function BentoGrid({ posts = [] }: { posts: any[] }) {
   return (
     <section className="pb-20">
       <motion.div 
-        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-50px" }}
       >
-        {/* Keep your Shot Analyzer tool in the big slot */}
-        <motion.div 
-          className="lg:col-span-2 lg:row-span-2 relative rounded-2xl border border-slate-200 bg-white p-6 lg:p-8 overflow-hidden shadow-sm"
-          variants={itemVariants}
-        >
-          <ShotAnalyzer />
-        </motion.div>
-
-        {/* 2. MAP OVER YOUR REAL POSTS INSTEAD OF THE HARDCODED LIST */}
         {posts.map((post) => (
           <motion.article
             key={post.slug?.current || post.title}
@@ -62,12 +49,11 @@ export function BentoGrid({ posts = [] }: { posts: any[] }) {
                 {post.category || "Masterclass"}
               </span>
               
-              <h3 className="text-xl font-black italic uppercase tracking-tighter mt-2 group-hover:text-green-600 transition-colors">
+              <h3 className="text-xl font-black italic uppercase tracking-tighter mt-2 group-hover:text-green-600 transition-colors leading-tight">
                 {post.title}
               </h3>
               
-              {/* Optional: Show a tiny bit of excerpt if it exists */}
-              <p className="text-sm text-slate-500 mt-2 leading-relaxed line-clamp-2">
+              <p className="text-sm text-slate-500 mt-3 leading-relaxed line-clamp-2 font-light">
                 {post.excerpt || "Dive into this technical breakdown to sharpen your game."}
               </p>
             </Link>
