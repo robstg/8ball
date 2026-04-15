@@ -60,7 +60,7 @@ export function Header() {
             <Link href="/" className={linkStyle('/')}>Home</Link>
             <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
             <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
-            <Link href="/about" className={linkStyle('/about')}>About</Link>
+            <Link href="/about-us" className={linkStyle('/about')}>About</Link>
           </nav>
         </div>
 
