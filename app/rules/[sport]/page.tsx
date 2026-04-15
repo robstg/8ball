@@ -1,12 +1,31 @@
 import { client } from "@/sanity/lib/client"
 import Link from "next/link"
 import { Scale, ChevronRight, ArrowLeft } from "lucide-react"
+import { notFound } from "next/navigation"
 
-export default async function SportListingPage({ params }: { params: { sport: string } }) {
-  // Fetch rules filtered by the sport in the URL
+// This tells Next.js exactly what pages to generate at build time
+export async function generateStaticParams() {
+  return [
+    { sport: '8-ball' },
+    { sport: '9-ball' },
+    { sport: 'snooker' }
+  ]
+}
+
+export default async function SportListingPage({ 
+  params 
+}: { 
+  params: Promise<{ sport: string }> 
+}) {
+  const resolvedParams = await params
+  const sport = resolvedParams?.sport
+
+  if (!sport) return notFound()
+
+  // We explicitly define the params object to ensure Sanity sees it
   const rules = await client.fetch(
     `*[_type == "rule" && sport == $sport] | order(title asc)`,
-    { sport: params.sport }
+    { sport: sport } 
   )
 
   return (
@@ -19,7 +38,7 @@ export default async function SportListingPage({ params }: { params: { sport: st
         <header className="mb-12">
           <span className="text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px]">Archive</span>
           <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 leading-none mt-2 capitalize">
-            {params.sport} <span className="text-emerald-500">Rules</span>
+            {sport.replace('-', ' ')} <span className="text-emerald-500">Rules</span>
           </h1>
         </header>
 
@@ -28,7 +47,7 @@ export default async function SportListingPage({ params }: { params: { sport: st
             rules.map((rule: any) => (
               <Link 
                 key={rule._id} 
-                href={`/rules/${params.sport}/${rule.slug.current}`}
+                href={`/rules/${sport}/${rule.slug.current}`}
                 className="group bg-white border border-slate-200 p-8 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-emerald-200 transition-all"
               >
                 <div>

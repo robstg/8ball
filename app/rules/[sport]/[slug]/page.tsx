@@ -2,28 +2,29 @@ import { client } from "@/sanity/lib/client"
 import { PortableText } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 
 export default async function RuleDetailPage({ 
   params 
 }: { 
   params: Promise<{ sport: string, slug: string }> 
 }) {
-  // 1. Await the params
   const { sport, slug } = await params
 
-  // 2. Fetch the specific rule
+  if (!slug) return notFound()
+
   const rule = await client.fetch(
     `*[_type == "rule" && slug.current == $slug][0]`,
-    { slug }
+    { slug: slug }
   )
 
-  if (!rule) return <div className="p-20 text-center font-black uppercase">Rule set not found.</div>
+  if (!rule) return notFound()
 
   return (
     <main className="min-h-screen bg-white pt-40 pb-20 px-6">
       <article className="max-w-3xl mx-auto">
         <Link href={`/rules/${sport}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 mb-12 transition-colors">
-          <ArrowLeft size={14} /> Back to {sport} List
+          <ArrowLeft size={14} /> Back to {sport.replace('-', ' ')} List
         </Link>
 
         <header className="mb-12">
