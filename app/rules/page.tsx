@@ -1,41 +1,55 @@
-// app/rules/page.tsx
 import { client } from "@/sanity/lib/client"
 import Link from "next/link"
-import { ShieldCheck, ChevronRight } from "lucide-react"
+import { Scale, ChevronRight, ArrowLeft } from "lucide-react"
 
-export default async function RulesHub() {
-  const sports = ['8-ball', '9-ball', 'snooker']
-  
+export default async function SportListingPage({ 
+  params 
+}: { 
+  params: Promise<{ sport: string }> 
+}) {
+  // 1. Await the params (Required in modern Next.js)
+  const { sport } = await params
+
+  // 2. Fetch rules filtered by that sport
+  const rules = await client.fetch(
+    `*[_type == "rule" && sport == $sport] | order(title asc)`,
+    { sport }
+  )
+
   return (
-    <main className="min-h-screen bg-slate-50 pt-32 pb-20 px-6">
+    <main className="min-h-screen bg-slate-50 pt-40 pb-20 px-6">
       <div className="max-w-4xl mx-auto">
-        <header className="mb-16 text-center">
-          <span className="text-emerald-600 font-black uppercase tracking-widest text-[10px]">Reference Library</span>
-          <h1 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-slate-900 mt-2">
-            The Rules.
+        <Link href="/rules" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 mb-8 transition-colors">
+          <ArrowLeft size={14} /> Back to Hub
+        </Link>
+
+        <header className="mb-12">
+          <span className="text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px]">Archive</span>
+          <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 leading-none mt-2 capitalize">
+            {sport.replace('-', ' ')} <span className="text-emerald-500">Rules</span>
           </h1>
-          <p className="text-slate-500 mt-4 text-lg">Select a discipline to browse official governing bodies and regional variations.</p>
         </header>
 
-        <div className="grid gap-6">
-          {sports.map((sport) => (
-            <Link 
-              key={sport} 
-              href={`/rules/${sport}`}
-              className="group bg-white border border-slate-200 p-10 rounded-[2.5rem] flex items-center justify-between hover:shadow-2xl hover:border-emerald-200 transition-all"
-            >
-              <div className="flex items-center gap-6">
-                <div className="p-5 bg-slate-50 rounded-2xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                  <ShieldCheck size={32} />
-                </div>
+        <div className="grid gap-4">
+          {rules.length > 0 ? (
+            rules.map((rule: any) => (
+              <Link 
+                key={rule._id} 
+                href={`/rules/${sport}/${rule.slug.current}`}
+                className="group bg-white border border-slate-200 p-8 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-emerald-200 transition-all"
+              >
                 <div>
-                  <h2 className="text-4xl font-black uppercase italic tracking-tight text-slate-900">{sport}</h2>
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Browse Archive</p>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{rule.governingBody}</span>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tight text-slate-900 mt-1">{rule.title}</h2>
                 </div>
-              </div>
-              <ChevronRight className="text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-2 transition-all" size={40} />
-            </Link>
-          ))}
+                <ChevronRight className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+              </Link>
+            ))
+          ) : (
+            <div className="bg-white p-20 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400">
+              No rules found for this sport yet.
+            </div>
+          )}
         </div>
       </div>
     </main>

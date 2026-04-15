@@ -3,10 +3,18 @@ import { PortableText } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
-export default async function RuleDetailPage({ params }: { params: { sport: string, slug: string } }) {
+export default async function RuleDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ sport: string, slug: string }> 
+}) {
+  // 1. Await the params
+  const { sport, slug } = await params
+
+  // 2. Fetch the specific rule
   const rule = await client.fetch(
     `*[_type == "rule" && slug.current == $slug][0]`,
-    { slug: params.slug }
+    { slug }
   )
 
   if (!rule) return <div className="p-20 text-center font-black uppercase">Rule set not found.</div>
@@ -14,8 +22,8 @@ export default async function RuleDetailPage({ params }: { params: { sport: stri
   return (
     <main className="min-h-screen bg-white pt-40 pb-20 px-6">
       <article className="max-w-3xl mx-auto">
-        <Link href={`/rules/${params.sport}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 mb-12 transition-colors">
-          <ArrowLeft size={14} /> Back to {params.sport} List
+        <Link href={`/rules/${sport}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 mb-12 transition-colors">
+          <ArrowLeft size={14} /> Back to {sport} List
         </Link>
 
         <header className="mb-12">
@@ -25,7 +33,6 @@ export default async function RuleDetailPage({ params }: { params: { sport: stri
           </h1>
         </header>
 
-        {/* The "Quick Verdict" settling the bar-room argument */}
         <div className="bg-emerald-600 text-white p-8 rounded-[2rem] mb-12 shadow-xl shadow-emerald-900/10 flex gap-6 items-start">
           <div className="bg-white/20 p-3 rounded-xl shrink-0">
             <AlertCircle size={24} />
@@ -38,9 +45,7 @@ export default async function RuleDetailPage({ params }: { params: { sport: stri
           </div>
         </div>
 
-        <div className="prose prose-slate max-w-none 
-          prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter
-          prose-p:text-slate-600 prose-p:text-lg prose-p:leading-relaxed">
+        <div className="prose prose-slate max-w-none prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter prose-p:text-slate-600 prose-p:text-lg prose-p:leading-relaxed">
           <PortableText value={rule.content} />
         </div>
       </article>
