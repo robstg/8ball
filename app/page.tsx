@@ -6,28 +6,37 @@ import { GearShowcase } from "@/components/gear-showcase"
 import { BottomNav } from "@/components/bottom-nav"
 import Link from "next/link" 
 
+// 1. THIS IS THE KEY: Forces Next.js to fetch fresh data on every request
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function Home() {
-  // We stripped out everything except the essentials.
-  // This query will not fail even if your posts are nearly empty.
+  // 2. We flatten the slug and add a 'no-store' cache rule
   const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc) [0...6] {
     title,
-    slug,
+    "slug": slug.current,
     mainImage,
     _createdAt,
-    body
-  }`)
+    "excerpt": coalesce(array::join(string::split(pt::text(body), "")[0..200], ""), "")
+  }`, 
+  {}, 
+  { cache: 'no-store' })
+
+  // 3. Look at your terminal (where you ran npm run dev) to see this:
+  console.log("HOME PAGE DEBUG - Posts Found:", posts?.length)
+  if (posts?.length > 0) {
+    console.log("LATEST POST TITLE:", posts[0].title)
+  }
 
   const hasPosts = posts && posts.length > 0
   const latestPost = hasPosts ? posts[0] : null
-  
-  // Send the rest of the rack to the grid
   const gridPosts = hasPosts ? posts.slice(1) : []
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-28 font-inter">
       
       {/* Lead ball */}
-      {latestPost && <Masthead latestPost={latestPost} />}
+      <Masthead latestPost={latestPost} />
       
       <div className="max-w-7xl mx-auto px-6 mt-12">
         <div className="mb-8 border-b border-slate-200 pb-4 flex justify-between items-end">
@@ -39,7 +48,6 @@ export default async function Home() {
           </Link>
         </div>
         
-        {/* If the grid has posts, show them. If not, don't crash. */}
         {gridPosts.length > 0 ? (
           <BentoGrid posts={gridPosts} /> 
         ) : (
