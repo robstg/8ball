@@ -4,18 +4,13 @@ import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-export default async function RuleDetailPage({ 
-  params 
-}: { 
-  params: Promise<{ sport: string, slug: string }> 
-}) {
-  const { sport, slug } = await params
-
-  if (!slug) return notFound()
+export default async function RuleDetailPage({ params }: { params: Promise<{ sport: string, slug: string }> }) {
+  const resolvedParams = await params
+  const { sport, slug } = resolvedParams
 
   const rule = await client.fetch(
-    `*[_type == "rule" && slug.current == $slug][0]`,
-    { slug: slug }
+    `*[_type == "rule" && slug.current == $ruleSlug][0]`,
+    { ruleSlug: slug || "" }
   )
 
   if (!rule) return notFound()
@@ -24,7 +19,7 @@ export default async function RuleDetailPage({
     <main className="min-h-screen bg-white pt-40 pb-20 px-6">
       <article className="max-w-3xl mx-auto">
         <Link href={`/rules/${sport}`} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 mb-12 transition-colors">
-          <ArrowLeft size={14} /> Back to {sport.replace('-', ' ')} List
+          <ArrowLeft size={14} /> Back to {sport}
         </Link>
 
         <header className="mb-12">
@@ -34,19 +29,12 @@ export default async function RuleDetailPage({
           </h1>
         </header>
 
-        <div className="bg-emerald-600 text-white p-8 rounded-[2rem] mb-12 shadow-xl shadow-emerald-900/10 flex gap-6 items-start">
-          <div className="bg-white/20 p-3 rounded-xl shrink-0">
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <h3 className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1 text-white">The Quick Verdict</h3>
-            <p className="text-lg font-bold leading-snug italic tracking-tight">
-              {rule.quickVerdict}
-            </p>
-          </div>
+        <div className="bg-emerald-600 text-white p-8 rounded-[2rem] mb-12 shadow-xl shadow-emerald-900/10 flex gap-6 items-start font-bold italic tracking-tight">
+          <div className="bg-white/20 p-3 rounded-xl shrink-0"><AlertCircle size={24} /></div>
+          <p className="text-lg leading-snug">{rule.quickVerdict}</p>
         </div>
 
-        <div className="prose prose-slate max-w-none prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter prose-p:text-slate-600 prose-p:text-lg prose-p:leading-relaxed">
+        <div className="prose prose-slate max-w-none prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter prose-p:text-slate-600 prose-p:text-lg">
           <PortableText value={rule.content} />
         </div>
       </article>

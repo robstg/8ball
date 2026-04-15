@@ -1,9 +1,8 @@
 import { client } from "@/sanity/lib/client"
 import Link from "next/link"
-import { Scale, ChevronRight, ArrowLeft } from "lucide-react"
-import { notFound } from "next/navigation"
+import { ChevronRight, ArrowLeft } from "lucide-react"
 
-// This tells Next.js exactly what pages to generate at build time
+// Force these pages to be generated at build time
 export async function generateStaticParams() {
   return [
     { sport: '8-ball' },
@@ -12,20 +11,14 @@ export async function generateStaticParams() {
   ]
 }
 
-export default async function SportListingPage({ 
-  params 
-}: { 
-  params: Promise<{ sport: string }> 
-}) {
+export default async function SportListingPage({ params }: { params: Promise<{ sport: string }> }) {
   const resolvedParams = await params
-  const sport = resolvedParams?.sport
+  const sportSlug = resolvedParams?.sport || ""
 
-  if (!sport) return notFound()
-
-  // We explicitly define the params object to ensure Sanity sees it
+  // Defensive fetch: we ensure sport is never undefined
   const rules = await client.fetch(
-    `*[_type == "rule" && sport == $sport] | order(title asc)`,
-    { sport: sport } 
+    `*[_type == "rule" && sport == $sportSlug] | order(title asc)`,
+    { sportSlug: sportSlug }
   )
 
   return (
@@ -36,9 +29,8 @@ export default async function SportListingPage({
         </Link>
 
         <header className="mb-12">
-          <span className="text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px]">Archive</span>
-          <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 leading-none mt-2 capitalize">
-            {sport.replace('-', ' ')} <span className="text-emerald-500">Rules</span>
+          <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 leading-none capitalize">
+            {sportSlug.replace('-', ' ')} <span className="text-emerald-500">Rules</span>
           </h1>
         </header>
 
@@ -47,7 +39,7 @@ export default async function SportListingPage({
             rules.map((rule: any) => (
               <Link 
                 key={rule._id} 
-                href={`/rules/${sport}/${rule.slug.current}`}
+                href={`/rules/${sportSlug}/${rule.slug.current}`}
                 className="group bg-white border border-slate-200 p-8 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-emerald-200 transition-all"
               >
                 <div>
@@ -58,8 +50,8 @@ export default async function SportListingPage({
               </Link>
             ))
           ) : (
-            <div className="bg-white p-20 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400">
-              No rules found for this sport yet.
+            <div className="bg-white p-20 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-black uppercase italic">
+              No rules found yet.
             </div>
           )}
         </div>
