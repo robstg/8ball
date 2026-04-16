@@ -15,7 +15,7 @@ export default async function RulesHub() {
           <h1 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-slate-900 mt-2 leading-none">
             The Rules.
           </h1>
-          <p className="text-slate-500 mt-4 text-lg">Select a discipline to browse official variations.</p>
+          <p className="text-slate-500 mt-4 text-lg">Select a discipline to browse the official variations.</p>
         </header>
 
         <div className="grid gap-6">
