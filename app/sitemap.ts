@@ -4,7 +4,7 @@ import { client } from '@/sanity/lib/client'
 // Rob's Note: We fetch all slugs and the last updated time 
 // to keep Google in the loop.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://pottheblack.co.nz' // Swap this for your actual domain
+  const baseUrl = 'https://pottheblack.com/' // Swap this for your actual domain
 
   // 1. Fetch all blog post slugs from Sanity
   const posts = await client.fetch(`
