@@ -9,7 +9,7 @@ const navItems = [
   { id: "masterclass", label: "Masterclass", icon: BookOpen, href: "/articles" },
   { id: "rules", label: "Rules", icon: Scale, href: "/rules" },
   { id: "gearlab", label: "Gear Lab", icon: Microscope, href: "/guides" },
-  { id: "brand", label: "Brand", icon: Info, href: "/about" }
+  { id: "brand", label: "Brand", icon: Info, href: "/about-us" }
 ]
 
 export function BottomNav() {
