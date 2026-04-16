@@ -73,23 +73,29 @@ export function GearShowcase() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
               {/* Image / Icon Area */}
-              <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center relative overflow-hidden">
-                
-                {/* 3. New Next.js Image Component */}
-                <div className="absolute inset-0">
-                  <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                </div>
-                
-                {/* 4. Gradient overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
+<div className="aspect-video bg-slate-100 flex items-center justify-center relative overflow-hidden">
+  
+  {/* The Image Component with object-cover ensures no stretching */}
+  <div className="absolute inset-0">
+    <Image 
+      src={item.imageUrl} 
+      alt={item.name} 
+      fill 
+      className="object-cover group-hover:scale-105 transition-transform duration-700" 
+      priority={i === 0}
+    />
+  </div>
+  
+  {/* Gradient overlay - adjusted to be more subtle for 16:9 */}
+  <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
 
-                {/* Badge Overlay (Positioned higher, darker background) */}
-                <div className="absolute top-6 left-6 z-10">
-                  <span className="px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 shadow-lg">
-                    {item.badge}
-                  </span>
-                </div>
-              </div>
+  {/* Badge Overlay */}
+  <div className="absolute top-4 left-4 z-10">
+    <span className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 text-[8px] font-black uppercase tracking-widest text-emerald-400 shadow-lg">
+      {item.badge}
+    </span>
+  </div>
+</div>
 
               {/* Content */}
               <div className="p-8">
