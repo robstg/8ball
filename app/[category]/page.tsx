@@ -1,8 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-// Adjust this import path to match your Sanity client location
 import { client } from '@/sanity/lib/client';
+import { cn, getCategoryStyles } from '@/lib/utils'; // 1. Use our new utility
+import { Microscope, ArrowRight } from 'lucide-react';
 
 interface CategoryPageProps {
   params: Promise<{
@@ -11,7 +12,6 @@ interface CategoryPageProps {
 }
 
 async function getArticlesByCategory(categorySlug: string) {
-  // This query looks for posts where the referenced category has the slug we want
   const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) {
     title,
     "slug": slug.current,
@@ -32,7 +32,6 @@ async function getArticlesByCategory(categorySlug: string) {
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
 
-  // We only want to handle our two main game types here
   const validCategories = ['pool', 'snooker'];
   const currentCategory = category.toLowerCase().trim();
 
@@ -41,71 +40,76 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   const articles = await getArticlesByCategory(currentCategory);
+  
+  // 2. Get the dynamic color theme for this category
+  const themeStyles = getCategoryStyles(currentCategory);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-inter">
-      {/* Header Section */}
-      <header className="py-24 bg-emerald-900/5 border-b border-emerald-900/20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center gap-4 mb-4">
-            <span className="h-[2px] w-12 bg-sky-500"></span>
-            <span className="text-sky-500 font-space-grotesk font-bold tracking-widest uppercase text-xs">
-              The Vault
-            </span>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      
+      {/* Header Section - Clean & Industrial */}
+      <header className="pt-40 pb-20 bg-white border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          <div className="flex items-center gap-2 mb-6">
+            <Microscope size={16} className="text-emerald-500" />
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Technical Archive</span>
           </div>
-          <h1 className="font-space-grotesk text-7xl md:text-8xl font-black uppercase italic tracking-tighter leading-none">
-            {category}<span className="text-sky-500">.</span>
+          
+          <h1 className="font-[family-name:var(--font-heading)] text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
+            {category}<span className="text-emerald-500">.</span>
           </h1>
-          <p className="mt-8 text-slate-400 text-lg max-w-2xl leading-relaxed">
-            From the RSA floors to the professional circuit. Here’s every breakdown, 
-            drill, and mental hack we’ve got for {category}.
+          
+          <p className="mt-8 text-slate-500 text-lg md:text-xl max-w-2xl leading-relaxed font-medium">
+            Advanced mechanical analysis, structural drills, and physics-based breakdowns specifically for <span className="text-slate-900 font-bold capitalize">{category}</span> discipline.
           </p>
         </div>
       </header>
 
       {/* Articles Grid */}
-      <main className="max-w-7xl mx-auto px-6 py-20">
+      <main className="max-w-7xl mx-auto px-6 md:px-12 py-24">
         {articles.length > 0 ? (
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {articles.map((article: any) => (
               <Link 
                 key={article.slug} 
                 href={`/articles/${article.slug}`}
-                className="group relative flex flex-col p-8 bg-slate-900/40 border border-emerald-900/20 rounded-2xl hover:border-sky-500/50 transition-all duration-300 shadow-2xl"
+                className="group relative flex flex-col p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-emerald-200 hover:shadow-2xl hover:shadow-emerald-900/5 transition-all duration-500"
               >
-                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-6 block">
-                  {article.date ? new Date(article.date).toLocaleDateString('en-NZ', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric' 
-                  }) : 'Recently Published'}
-                </span>
+                {/* 3. Category Badge using the Dynamic Theme */}
+                <div className="mb-8">
+                    <span className={cn(
+                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center gap-1.5",
+                        themeStyles
+                    )}>
+                        <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
+                        {category}
+                    </span>
+                </div>
                 
-                <h2 className="font-space-grotesk text-2xl font-bold group-hover:text-sky-500 transition-colors leading-tight">
+                <h2 className="font-[family-name:var(--font-heading)] text-3xl font-black uppercase italic tracking-tighter text-slate-900 group-hover:text-emerald-600 transition-colors leading-none mb-4">
                   {article.title}
                 </h2>
                 
-                <p className="mt-4 text-slate-400 text-sm leading-relaxed flex-grow line-clamp-3">
+                <p className="text-slate-500 text-sm leading-relaxed flex-grow line-clamp-3 font-medium">
                   {article.excerpt}
                 </p>
                 
-                <div className="mt-8 pt-6 border-t border-emerald-900/10 flex items-center text-xs font-black text-slate-300 uppercase tracking-tighter group-hover:text-white transition-colors">
-                  View Full Breakdown 
-                  <span className="ml-2 text-sky-500 group-hover:translate-x-2 transition-transform duration-300">
-                    →
+                <div className="mt-10 pt-8 border-t border-slate-50 flex items-center justify-between">
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                    {article.date ? new Date(article.date).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' }) : 'Report Pending'}
                   </span>
+                  <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover:bg-emerald-500 transition-all shadow-lg">
+                    <ArrowRight size={16} />
+                  </div>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="text-center py-40 border-2 border-dashed border-emerald-900/10 rounded-3xl bg-emerald-900/5">
-            <p className="font-inter text-slate-500 italic text-xl">
-              The rack is empty for "{category}" at the moment, mate. 
-              <br />
-              <span className="text-sm mt-3 block not-italic font-medium text-slate-600">
-                Check your Sanity Studio to ensure posts are tagged with the correct category slug.
-              </span>
+          <div className="text-center py-40 bg-white border border-slate-100 rounded-[3rem] shadow-sm">
+            <Microscope className="mx-auto text-slate-200 mb-6" size={64} strokeWidth={1} />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
+              No reports found in the "{category}" archive.
             </p>
           </div>
         )}
