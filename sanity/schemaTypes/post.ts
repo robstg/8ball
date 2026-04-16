@@ -4,34 +4,47 @@ export default defineType({
   name: 'post',
   title: 'Pool Tips & Updates',
   type: 'document',
+  // 1. Define Groups for a premium Studio experience
+  groups: [
+    { name: 'content', title: 'Content', default: true },
+    { name: 'seo', title: 'SEO & Metadata' },
+  ],
   fields: [
+    // --- CONTENT GROUP ---
     defineField({
       name: 'title',
       title: 'Headline',
       type: 'string',
+      group: 'content',
     }),
     defineField({
       name: 'slug',
       title: 'URL Slug',
       type: 'slug',
       options: {source: 'title'},
+      group: 'content',
     }),
     defineField({
       name: 'category',
       title: 'Category',
       type: 'reference',
       to: [{type: 'category'}],
+      group: 'content',
     }),
     defineField({
       name: 'mainImage',
       title: 'Cover Photo',
       type: 'image',
       options: {hotspot: true},
+      group: 'content',
     }),
+    
+    // The "Page Builder" style Content Array
     defineField({
       name: 'body',
-      title: 'Content',
+      title: 'Content Blocks',
       type: 'array',
+      group: 'content',
       of: [
         {
           type: 'block',
@@ -66,7 +79,6 @@ export default defineType({
             }
           ]
         },
-        // --- THE D1 UPGRADE: ADD THIS FOR AMAZON/HTML ---
         {
           type: 'code',
           title: 'HTML / Product Embed',
@@ -77,8 +89,25 @@ export default defineType({
               {title: 'Javascript', value: 'javascript'}
             ]
           }
+        },
+        // ADDED: Link to Rules directly in your text flow
+        {
+          type: 'reference',
+          name: 'ruleCallout',
+          title: 'Rule Reference',
+          to: [{ type: 'rule' }],
+          description: 'Drop an official rule card directly into the article.'
         }
       ],
+    }),
+
+    // --- SEO GROUP ---
+    // This uses the 'seo' object we registered in schemaTypes/index.ts
+    defineField({
+      name: 'seo',
+      title: 'Search Engine Optimization',
+      type: 'seo',
+      group: 'seo',
     }),
   ],
 })
