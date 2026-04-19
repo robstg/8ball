@@ -65,6 +65,18 @@ export default defineType({
           type: 'image',
           options: { hotspot: true },
           fields: [{ name: 'alt', type: 'string', title: 'Alt Text' }]
+        },
+        // --- ADDED: HTML / Product Embed Block ---
+        {
+          type: 'code',
+          title: 'HTML / Product Embed',
+          options: {
+            language: 'html',
+            languageAlternatives: [
+              {title: 'HTML', value: 'html'},
+              {title: 'Javascript', value: 'javascript'}
+            ]
+          }
         }
       ],
     }),
