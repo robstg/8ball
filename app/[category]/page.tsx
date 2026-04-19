@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '@/sanity/lib/client';
-import { cn, getCategoryStyles } from '@/lib/utils'; // 1. Use our new utility
+import { cn, getCategoryStyles } from '@/lib/utils';
 import { Microscope, ArrowRight } from 'lucide-react';
 
 interface CategoryPageProps {
@@ -12,7 +12,8 @@ interface CategoryPageProps {
 }
 
 async function getArticlesByCategory(categorySlug: string) {
-  const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) {
+  // We added [0...6] to the end of the query to ensure we fill that 3-column grid perfectly
+  const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...6] {
     title,
     "slug": slug.current,
     "excerpt": excerpt,
@@ -41,11 +42,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   const articles = await getArticlesByCategory(currentCategory);
   
-  // 2. Get the dynamic color theme for this category
+  // Get the dynamic color theme for this category (Sky for Snooker, Emerald for Pool, etc.)
   const themeStyles = getCategoryStyles(currentCategory);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-['Inter']">
       
       {/* Header Section - Clean & Industrial */}
       <header className="pt-40 pb-20 bg-white border-b border-slate-100">
@@ -55,12 +56,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Technical Archive</span>
           </div>
           
-          <h1 className="font-[family-name:var(--font-heading)] text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
+          <h1 className="font-['Space_Grotesk'] text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
             {category}<span className="text-emerald-500">.</span>
           </h1>
           
           <p className="mt-8 text-slate-500 text-lg md:text-xl max-w-2xl leading-relaxed font-medium">
-            Advanced mechanical analysis, structural drills, and physics-based breakdowns specifically for <span className="text-slate-900 font-bold capitalize">{category}</span> discipline.
+            Advanced mechanical analysis, structural drills, and physics-based breakdowns specifically for the <span className="text-slate-900 font-bold capitalize">{category}</span> discipline.
           </p>
         </div>
       </header>
@@ -75,7 +76,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 href={`/articles/${article.slug}`}
                 className="group relative flex flex-col p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-emerald-200 hover:shadow-2xl hover:shadow-emerald-900/5 transition-all duration-500"
               >
-                {/* 3. Category Badge using the Dynamic Theme */}
+                {/* Category Badge using the Dynamic Theme */}
                 <div className="mb-8">
                     <span className={cn(
                         "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center gap-1.5",
@@ -86,7 +87,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                     </span>
                 </div>
                 
-                <h2 className="font-[family-name:var(--font-heading)] text-3xl font-black uppercase italic tracking-tighter text-slate-900 group-hover:text-emerald-600 transition-colors leading-none mb-4">
+                <h2 className="font-['Space_Grotesk'] text-3xl font-black uppercase italic tracking-tighter text-slate-900 group-hover:text-emerald-600 transition-colors leading-[1.1] mb-4">
                   {article.title}
                 </h2>
                 
