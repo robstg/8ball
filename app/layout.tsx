@@ -5,12 +5,14 @@ import { Space_Grotesk, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { Header } from "@/components/header"
+import Script from 'next/script' // 1. Added this import
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({ 
   subsets: ["latin"],
   variable: '--font-heading'
 });
+
 const inter = Inter({ 
   subsets: ["latin"],
   variable: '--font-body'
@@ -26,8 +28,15 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      {/* Rob's Note: Swapped bg-white for bg-slate-50 for that "easy on the eyes" feel. */}
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
+        
+        {/* 2. Google AdSense Integration */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3633851595010615"
+          crossOrigin="anonymous"
+          strategy="afterInteractive" // Loads after the page is interactive for better performance
+        />
         
         {!isStudio && <Header />}
         
