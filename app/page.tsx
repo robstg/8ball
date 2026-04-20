@@ -12,7 +12,7 @@ export const revalidate = 0
 
 export default async function Home() {
   // 2. We flatten the slug and add a 'no-store' cache rule
-  const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc) [0...6] {
+  const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc) [0...7] {
     title,
     "slug": slug.current,
     mainImage,
