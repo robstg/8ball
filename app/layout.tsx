@@ -30,14 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
         
-        {/* 2. Google AdSense Integration */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3633851595010615"
-          crossOrigin="anonymous"
-          strategy="afterInteractive" // Loads after the page is interactive for better performance
-        />
-        
+                
         {!isStudio && <Header />}
         
         {/* We keep the inner content white so it pops off the faint slate background */}
