@@ -1,8 +1,41 @@
 import { client } from "@/sanity/lib/client"
-import { PortableText } from "@portabletext/react"
+import { PortableText, PortableTextComponents } from "@portabletext/react" // Added PortableTextComponents type
 import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+
+// 1. Define how to render the 'code' block
+const portableTextComponents: PortableTextComponents = {
+  types: {
+    code: ({ value }: any) => {
+      // If you selected 'HTML' in Sanity, we render it as raw HTML
+      if (value.language === 'html' || value.language === 'javascript') {
+        return (
+          <div 
+            className="my-10 w-full flex justify-center overflow-hidden"
+            dangerouslySetInnerHTML={{ __html: value.code }} 
+          />
+        )
+      }
+      // Fallback for regular code snippets
+      return (
+        <pre className="my-8 p-6 rounded-2xl bg-slate-900 text-emerald-400 font-mono text-sm overflow-x-auto border border-slate-800 shadow-2xl">
+          <code>{value.code}</code>
+        </pre>
+      )
+    },
+    // You can also add custom image rendering here if needed
+    image: ({ value }: any) => (
+        <div className="my-12 rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
+            <img 
+                src={client.imageUrlBuilder().image(value).url()} 
+                alt={value.alt || "Rule Illustration"} 
+                className="w-full object-cover"
+            />
+        </div>
+    )
+  }
+}
 
 export default async function RuleDetailPage({ params }: { params: Promise<{ sport: string, slug: string }> }) {
   const resolvedParams = await params
@@ -35,7 +68,8 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         </div>
 
         <div className="prose prose-slate max-w-none prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter prose-p:text-slate-600 prose-p:text-lg">
-          <PortableText value={rule.content} />
+          {/* 2. Pass the custom components to PortableText */}
+          <PortableText value={rule.content} components={portableTextComponents} />
         </div>
       </article>
     </main>
