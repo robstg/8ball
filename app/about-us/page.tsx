@@ -2,10 +2,14 @@ import { client } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
 import { PortableText } from '@portabletext/react'
 import { BottomNav } from "@/components/bottom-nav"
-import ContactForm from "@/components/contact-form" // Ensure this path is correct
+import ContactForm from "@/components/contact-form"
 import Image from 'next/image'
 
-// 1. Updated components for LIGHT MODE
+// --- THE FIX: KILL THE CACHE ---
+export const revalidate = 0; 
+export const dynamic = 'force-dynamic';
+// ------------------------------
+
 const components = {
   types: {
     image: ({ value }: any) => (
@@ -38,7 +42,7 @@ const components = {
       <div className="grid grid-cols-2 gap-6 my-16">
         {value.stats?.map((stat: any, i: number) => (
           <div key={i} className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-4xl font-[family-name:var(--font-heading)] font-black text-emerald-600 italic uppercase tracking-tighter">
+            <div className="text-4xl font-black text-emerald-600 italic uppercase tracking-tighter">
               {stat.value}
             </div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black mt-2">
@@ -52,6 +56,7 @@ const components = {
 }
 
 export default async function AboutPage() {
+  // Fetching fresh data every time because of revalidate = 0
   const data = await client.fetch(`*[_type == "page" && slug.current == "about-us"][0]`)
 
   if (!data) {
@@ -68,7 +73,6 @@ export default async function AboutPage() {
     <main className="min-h-screen pb-32 bg-slate-50 text-slate-900">
       <article className="max-w-4xl mx-auto px-6">
         
-        {/* Header Section */}
         <header className="pt-32 pb-16 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
             <span className="w-8 h-[2px] bg-emerald-500"></span>
@@ -81,7 +85,6 @@ export default async function AboutPage() {
           </h1>
         </header>
         
-        {/* Main Content Render */}
         <div className="prose prose-slate max-w-none 
           prose-headings:uppercase prose-headings:italic prose-headings:font-black prose-headings:tracking-tighter
           prose-p:text-slate-600 prose-p:text-lg prose-p:leading-relaxed
@@ -89,7 +92,6 @@ export default async function AboutPage() {
           <PortableText value={data.content} components={components} />
         </div>
 
-        {/* The Final Pocket: Contact Section */}
         <hr className="my-24 border-slate-200" />
         
         <div id="contact" className="scroll-mt-32">
@@ -103,7 +105,6 @@ export default async function AboutPage() {
           </div>
           <ContactForm />
         </div>
-
       </article>
       
       <BottomNav />
