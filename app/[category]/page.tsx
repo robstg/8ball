@@ -1,9 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { client } from '@/sanity/lib/client';
+import { urlFor } from '@/sanity/lib/image';
 import { cn, getCategoryStyles } from '@/lib/utils';
 import { Microscope, ArrowRight } from 'lucide-react';
+
+// THE REFRESH FIX: Ensures the lab data is always fresh
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 interface CategoryPageProps {
   params: Promise<{
@@ -12,11 +18,12 @@ interface CategoryPageProps {
 }
 
 async function getArticlesByCategory(categorySlug: string) {
-  // We added [0...6] to the end of the query to ensure we fill that 3-column grid perfectly
-  const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...6] {
+  // Updated Query: Now grabs mainImage and generates a snippet from the body text
+  const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...12] {
     title,
     "slug": slug.current,
-    "excerpt": excerpt,
+    mainImage,
+    "snippet": array::join(string::split(pt::text(body), "")[0...140], "") + "...",
     "date": publishedAt,
     "categoryTitle": category->title
   }`;
@@ -33,7 +40,8 @@ async function getArticlesByCategory(categorySlug: string) {
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
 
-  const validCategories = ['pool', 'snooker'];
+  // 1. ADDED: '9-ball' to the valid categories list
+  const validCategories = ['pool', 'snooker', '9-ball'];
   const currentCategory = category.toLowerCase().trim();
 
   if (!validCategories.includes(currentCategory)) {
@@ -41,43 +49,52 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   const articles = await getArticlesByCategory(currentCategory);
-  
-  // Get the dynamic color theme for this category (Sky for Snooker, Emerald for Pool, etc.)
   const themeStyles = getCategoryStyles(currentCategory);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-['Inter']">
       
-      {/* Header Section - Clean & Industrial */}
       <header className="pt-40 pb-20 bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex items-center gap-2 mb-6">
             <Microscope size={16} className="text-emerald-500" />
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Technical Archive</span>
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Discipline Archive</span>
           </div>
           
           <h1 className="font-['Space_Grotesk'] text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
-            {category}<span className="text-emerald-500">.</span>
+            {category.replace('-', ' ')}<span className="text-emerald-500">.</span>
           </h1>
           
-          <p className="mt-8 text-slate-500 text-lg md:text-xl max-w-2xl leading-relaxed font-medium">
-            Advanced mechanical analysis, structural drills, and physics-based breakdowns specifically for the <span className="text-slate-900 font-bold capitalize">{category}</span> discipline.
+          <p className="mt-8 text-slate-500 text-xl max-w-2xl leading-relaxed font-medium italic">
+            Advanced mechanical analysis and physics-based breakdowns specifically for the <span className="text-slate-900 font-bold capitalize">{category.replace('-', ' ')}</span> discipline.
           </p>
         </div>
       </header>
 
-      {/* Articles Grid */}
       <main className="max-w-7xl mx-auto px-6 md:px-12 py-24">
         {articles.length > 0 ? (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
             {articles.map((article: any) => (
               <Link 
                 key={article.slug} 
                 href={`/articles/${article.slug}`}
-                className="group relative flex flex-col p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-emerald-200 hover:shadow-2xl hover:shadow-emerald-900/5 transition-all duration-500"
+                className="group flex flex-col transition-all duration-500"
               >
-                {/* Category Badge using the Dynamic Theme */}
-                <div className="mb-8">
+                {/* 2. ADDED: Main Image Preview */}
+                <div className="relative aspect-[16/10] mb-8 overflow-hidden rounded-[2.5rem] border border-slate-100 shadow-lg group-hover:shadow-2xl group-hover:scale-[1.02] transition-all duration-500 bg-slate-200">
+                  {article.mainImage ? (
+                    <Image 
+                        src={urlFor(article.mainImage).url()}
+                        alt={article.title}
+                        fill
+                        className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-400">Image Pending</div>
+                  )}
+                </div>
+
+                <div className="mb-4">
                     <span className={cn(
                         "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center gap-1.5",
                         themeStyles
@@ -91,11 +108,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   {article.title}
                 </h2>
                 
-                <p className="text-slate-500 text-sm leading-relaxed flex-grow line-clamp-3 font-medium">
-                  {article.excerpt}
+                {/* 3. UPDATED: Uses the automatic snippet */}
+                <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 font-medium mb-8">
+                  {article.snippet}
                 </p>
                 
-                <div className="mt-10 pt-8 border-t border-slate-50 flex items-center justify-between">
+                <div className="mt-auto pt-8 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
                     {article.date ? new Date(article.date).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' }) : 'Report Pending'}
                   </span>
@@ -107,7 +125,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             ))}
           </div>
         ) : (
-          <div className="text-center py-40 bg-white border border-slate-100 rounded-[3rem] shadow-sm">
+          <div className="text-center py-40 bg-white border border-slate-100 rounded-[3rem]">
             <Microscope className="mx-auto text-slate-200 mb-6" size={64} strokeWidth={1} />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
               No reports found in the "{category}" archive.
