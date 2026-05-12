@@ -6,6 +6,7 @@ import { client } from '@/sanity/lib/client';
 import { urlFor } from '@/sanity/lib/image';
 import { cn, getCategoryStyles } from '@/lib/utils';
 import { Microscope, ArrowRight } from 'lucide-react';
+import { Metadata } from 'next';
 
 // THE REFRESH FIX: Ensures the lab data is always fresh
 export const revalidate = 0;
@@ -17,8 +18,20 @@ interface CategoryPageProps {
   }>;
 }
 
+// THE SEO FIX: Dynamic Metadata for a global audience
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { category } = await params;
+  
+  // Clean up the string for the tab title
+  const title = category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
+
+  return {
+    title: title, // This replaces the %s in your root layout template
+    description: `Advanced technical tips, structural drills, and physics-based breakdowns for ${title} players worldwide.`,
+  };
+}
+
 async function getArticlesByCategory(categorySlug: string) {
-  // Updated Query: Now grabs mainImage and generates a snippet from the body text
   const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...12] {
     title,
     "slug": slug.current,
@@ -40,7 +53,7 @@ async function getArticlesByCategory(categorySlug: string) {
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
 
-  // 1. ADDED: '9-ball' to the valid categories list
+  // 9-ball is now a verified discipline in the archive
   const validCategories = ['pool', 'snooker', '9-ball'];
   const currentCategory = category.toLowerCase().trim();
 
@@ -52,17 +65,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const themeStyles = getCategoryStyles(currentCategory);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-['Inter']">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-body antialiased">
       
       <header className="pt-40 pb-20 bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex items-center gap-2 mb-6">
-            <Microscope size={16} className="text-emerald-500" />
+            <Microscope size={16} className="text-emerald-600" />
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Discipline Archive</span>
           </div>
           
-          <h1 className="font-['Space_Grotesk'] text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
-            {category.replace('-', ' ')}<span className="text-emerald-500">.</span>
+          <h1 className="font-heading text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
+            {category.replace('-', ' ')}<span className="text-emerald-600">.</span>
           </h1>
           
           <p className="mt-8 text-slate-500 text-xl max-w-2xl leading-relaxed font-medium italic">
@@ -80,7 +93,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 href={`/articles/${article.slug}`}
                 className="group flex flex-col transition-all duration-500"
               >
-                {/* 2. ADDED: Main Image Preview */}
                 <div className="relative aspect-[16/10] mb-8 overflow-hidden rounded-[2.5rem] border border-slate-100 shadow-lg group-hover:shadow-2xl group-hover:scale-[1.02] transition-all duration-500 bg-slate-200">
                   {article.mainImage ? (
                     <Image 
@@ -104,11 +116,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                     </span>
                 </div>
                 
-                <h2 className="font-['Space_Grotesk'] text-3xl font-black uppercase italic tracking-tighter text-slate-900 group-hover:text-emerald-600 transition-colors leading-[1.1] mb-4">
+                <h2 className="font-heading text-3xl font-black uppercase italic tracking-tighter text-slate-900 group-hover:text-emerald-600 transition-colors leading-[1.1] mb-4">
                   {article.title}
                 </h2>
                 
-                {/* 3. UPDATED: Uses the automatic snippet */}
                 <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 font-medium mb-8">
                   {article.snippet}
                 </p>
@@ -117,7 +128,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
                     {article.date ? new Date(article.date).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' }) : 'Report Pending'}
                   </span>
-                  <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover:bg-emerald-500 transition-all shadow-lg">
+                  <div className="w-10 h-10 rounded-full bg-slate-950 text-white flex items-center justify-center group-hover:bg-emerald-600 transition-all shadow-lg">
                     <ArrowRight size={16} />
                   </div>
                 </div>
