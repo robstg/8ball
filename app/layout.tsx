@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/next';
-import { GoogleAnalytics } from '@next/third-parties/google';
 import LayoutWrapper from "@/components/layout-wrapper";
 import './globals.css';
 
@@ -15,27 +13,17 @@ const inter = Inter({
   variable: '--font-body'
 });
 
-// THE FIX: Prepending logic for a global audience.
-// This template handles the "prepended word" automatically for sub-pages.
 export const metadata: Metadata = {
   title: {
-    default: "Pot The Black | The Technical Cue Sports Site",
-    template: "%s | Pot The Black" 
+    default: "Pot The Black | The Technical Cue Sports Archive", // Home page title
+    template: "%s | Pot The Black" // %s is replaced by the child page's title
   },
-  description: "Advanced mechanical analysis, physics-based drills, and tactical breakdowns for 8-ball, 9-ball, and snooker players worldwide. No fluff, just the math behind the game.",
-  keywords: ["Pool tips", "Snooker rules", "8-ball tactics", "9-ball drills", "Cue sports mechanics"],
+  description: "Advanced mechanical analysis and tactical breakdowns for 8-ball and snooker players worldwide. No fluff, just physics.",
   openGraph: {
-    title: "Pot The Black | The Technical Cue Sports Site",
-    description: "Master the baize with physics-based drills and veteran technical advice.",
-    url: 'https://pottheblack.com',
-    siteName: 'Pot The Black',
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: "Pot The Black | The Technical Cue Sports Site",
-    description: "Master the baize with physics-based drills and veteran technical advice.",
+    title: "Pot The Black | The Technical Cue Sports Archive",
+    siteName: "Pot The Black",
+    locale: "en_US",
+    type: "website",
   },
 };
 
@@ -46,13 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
+      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-950`}>
         <LayoutWrapper>
           {children}
         </LayoutWrapper>
-
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-        {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
       </body>
     </html>
   );
