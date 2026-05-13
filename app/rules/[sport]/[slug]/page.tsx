@@ -3,30 +3,31 @@ import { PortableText, PortableTextComponents } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import imageUrlBuilder from "@sanity/image-url" // 1. Import the builder
+import imageUrlBuilder from "@sanity/image-url"
 import { Metadata } from "next"
 
-// THE FIX: This function intercepts the page load to build your SEO title tag
+// THE FIX: Dynamic Metadata generation for Rule Detail Pages
 export async function generateMetadata({ params }: { params: Promise<{ sport: string, slug: string }> }): Promise<Metadata> {
-  const resolvedParams = await params
-  const { slug } = resolvedParams
+  const resolvedParams = await params;
+  const { slug } = resolvedParams;
 
   const rule = await client.fetch(
     `*[_type == "rule" && slug.current == $ruleSlug][0]{ title, quickVerdict }`,
     { ruleSlug: slug || "" }
-  )
+  );
 
   if (!rule) {
-    return { title: "Rule Not Found | Pot The Black" }
+    return {
+      title: "Rule Not Found | Pot The Black",
+    };
   }
 
   return {
-    title: rule.title, // This pushes the specific rule title into your %s layout template
-    description: rule.quickVerdict || `Official technical rules and breakdowns for ${rule.title}.`,
-  }
+    title: rule.title, // This replaces the %s in your root layout template
+    description: rule.quickVerdict || `Full technical breakdown of the ${rule.title} rule for competitive play.`,
+  };
 }
 
-// 2. Initialize the Image Builder
 const builder = imageUrlBuilder(client)
 function urlFor(source: any) {
   return builder.image(source)
@@ -34,9 +35,7 @@ function urlFor(source: any) {
 
 const portableTextComponents: PortableTextComponents = {
   types: {
-    // 3. The FIXED Code/HTML Renderer
     code: ({ value }: any) => {
-      // Force it to render as HTML if the language is 'html' or if the code contains HTML tags
       const isHtml = value.language === 'html' || value.code?.includes('<div') || value.code?.includes('<table')
 
       if (isHtml) {
@@ -48,15 +47,12 @@ const portableTextComponents: PortableTextComponents = {
         )
       }
 
-      // Standard fallback for actual code snippets
       return (
         <pre className="my-8 p-6 rounded-2xl bg-slate-900 text-emerald-400 font-mono text-sm overflow-x-auto border border-slate-800 shadow-2xl">
           <code>{value.code}</code>
         </pre>
       )
     },
-
-    // 4. The FIXED Image Renderer
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null
       return (
@@ -76,7 +72,6 @@ const portableTextComponents: PortableTextComponents = {
     }
   },
   block: {
-    // Styling the standard text blocks to match the brand
     h2: ({ children }) => <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900 mt-16 mb-6">{children}</h2>,
     h3: ({ children }) => <h3 className="text-xl font-black uppercase tracking-tight text-slate-800 mt-10 mb-4">{children}</h3>,
     normal: ({ children }) => <p className="text-slate-600 text-lg leading-relaxed mb-6 font-medium">{children}</p>,
@@ -87,7 +82,6 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
   const resolvedParams = await params
   const { sport, slug } = resolvedParams
 
-  // Fetch the rule and include the SEO field for the head tag later
   const rule = await client.fetch(
     `*[_type == "rule" && slug.current == $ruleSlug][0]`,
     { ruleSlug: slug || "" }
@@ -118,7 +112,6 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
           </h1>
         </header>
 
-        {/* The Quick Verdict / Bar Bet Settler */}
         <div className="bg-emerald-600 text-white p-10 rounded-[2.5rem] mb-16 shadow-2xl shadow-emerald-900/20 flex flex-col md:flex-row gap-8 items-start relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-500">
              <AlertCircle size={120} strokeWidth={1} />
@@ -136,7 +129,6 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
           </div>
         </div>
 
-        {/* Full Rule Content */}
         <div className="prose-custom">
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
