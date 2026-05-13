@@ -3,7 +3,30 @@ import { PortableText, PortableTextComponents } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import imageUrlBuilder from "@sanity/image-url" // 1. Import the builder
+import imageUrlBuilder from "@sanity/image-url"
+import { Metadata } from "next"
+
+// 1. Dynamic Metadata Generation for SEO
+export async function generateMetadata({ params }: { params: Promise<{ sport: string, slug: string }> }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const { slug } = resolvedParams;
+
+  const rule = await client.fetch(
+    `*[_type == "rule" && slug.current == $ruleSlug][0]{ title, quickVerdict }`,
+    { ruleSlug: slug || "" }
+  );
+
+  if (!rule) {
+    return {
+      title: "Rule Not Found | Pot The Black",
+    };
+  }
+
+  return {
+    title: rule.title, // This slots directly into your %s template
+    description: rule.quickVerdict || `Full technical breakdown of the ${rule.title} rule.`,
+  };
+}
 
 // 2. Initialize the Image Builder
 const builder = imageUrlBuilder(client)
