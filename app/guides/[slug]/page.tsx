@@ -27,9 +27,50 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 const portableTextComponents: PortableTextComponents = {
+  types: {
+    // THE HTML FIX: This tells the renderer to execute raw HTML if it's a 'code' block
+    code: ({ value }: any) => {
+      if (!value?.code) return null;
+
+      // Force it to render as HTML if the language is 'html' or if it contains HTML tags
+      const isHtml = value.language === 'html' || value.code.trim().startsWith('<');
+
+      if (isHtml) {
+        return (
+          /* Rob's Note: A clean container for our technical comparison tables */
+          <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
+            <div 
+              className="w-full max-w-full overflow-auto text-slate-900 font-body"
+              dangerouslySetInnerHTML={{ __html: value.code }} 
+            />
+          </div>
+        );
+      }
+      
+      // Standard fallback for actual code snippets
+      return (
+        <pre className="my-10 p-6 bg-slate-950 rounded-xl border border-slate-900 overflow-x-auto text-emerald-400 text-sm font-mono">
+          <code>{value.code}</code>
+        </pre>
+      );
+    },
+    image: ({ value }: any) => {
+      if (!value?.asset?._ref) return null
+      return (
+        <div className="my-12 rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-xl bg-white">
+          <img 
+            src={urlFor(value).width(1600).url()} 
+            alt={value.alt || "Technical Illustration"} 
+            className="w-full h-auto object-cover"
+          />
+        </div>
+      )
+    }
+  },
   block: {
-    h2: ({ children }) => <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900 mt-16 mb-6">{children}</h2>,
-    normal: ({ children }) => <p className="text-slate-600 text-lg leading-relaxed mb-6 font-medium">{children}</p>,
+    h2: ({ children }) => <h2 className="font-heading text-3xl font-black uppercase italic tracking-tighter text-slate-950 mt-16 mb-6 leading-none">{children}</h2>,
+    h3: ({ children }) => <h3 className="font-heading text-xl font-black uppercase tracking-tight text-emerald-600 mt-10 mb-4">{children}</h3>,
+    normal: ({ children }) => <p className="font-body text-slate-600 text-lg leading-relaxed mb-6 font-medium">{children}</p>,
   }
 }
 
@@ -40,7 +81,7 @@ export default async function GuideDetailPage({
 }) {
   const { slug } = await params
 
-  // THE LIVE FETCH: Grabbing the real data from the Engineering Lab
+  // THE LIVE FETCH: Updated to explicitly fetch 'code' and 'language' fields
   const guide = await client.fetch(
     `*[_type == "guide" && slug.current == $slug][0]{
       title,
@@ -48,7 +89,13 @@ export default async function GuideDetailPage({
       score,
       spec,
       badge,
-      body
+      body[]{
+        ...,
+        _type == "code" => {
+          code,
+          language
+        }
+      }
     }`, 
     { slug }
   )
@@ -88,7 +135,7 @@ export default async function GuideDetailPage({
             </div>
         </div>
 
-        <div className="bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-sm">
+        <div className="bg-white p-12 md:p-20 rounded-[2.5rem] border border-slate-100 shadow-sm">
           <div className="prose prose-slate max-w-none 
             prose-p:text-slate-600 prose-p:text-lg prose-p:leading-relaxed 
             prose-headings:font-heading prose-headings:font-black prose-headings:uppercase prose-headings:italic">
