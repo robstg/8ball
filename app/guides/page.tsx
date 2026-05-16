@@ -1,41 +1,88 @@
+import { client } from '@/sanity/lib/client'
+import { urlFor } from '@/sanity/lib/image'
 import Link from "next/link"
-import { Scale, ChevronRight, Microscope } from "lucide-react"
+import Image from "next/image"
+import { ChevronRight, Microscope } from "lucide-react"
 
-// Hardcoded for now until Sanity Schema is ready
-const labGuides = ['carbon-fiber-101', 'tip-selection-101', 'ball-science']
+// THE RE-RACK: Ensures fresh data from the Lab on every visit
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+async function getGuides() {
+  // THE QUERY: Fetches every 'guide' document from Sanity
+  // If your previews still aren't showing, check if your schema is named 'guide'
+  const query = `*[_type == "guide"] | order(_createdAt desc) {
+    title,
+    "slug": slug.current,
+    mainImage,
+    categoryTitle,
+    "snippet": array::join(string::split(pt::text(body), "")[0...100], "")
+  }`
+  
+  return await client.fetch(query)
+}
 
 export default async function GuidesPage() {
+  const guides = await getGuides();
   
   return (
-    <main className="min-h-screen bg-slate-50 pt-32 pb-20 px-6">
+    <main className="min-h-screen bg-slate-50 pt-32 pb-20 px-6 font-body antialiased">
       <div className="max-w-4xl mx-auto">
         <header className="mb-16 text-center">
-          <span className="text-emerald-600 font-black uppercase tracking-widest text-[10px]">Reference Library</span>
-          <h1 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-slate-900 mt-2 leading-none">
-            The Technical Lab.
+          <div className="flex items-center gap-2 justify-center mb-4">
+            <Microscope size={16} className="text-emerald-500" />
+            <span className="text-emerald-600 font-black uppercase tracking-widest text-[10px]">Reference Library</span>
+          </div>
+          <h1 className="font-heading text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-slate-900 mt-2 leading-none">
+            The Technical Lab<span className="text-emerald-500">.</span>
           </h1>
-          <p className="text-slate-500 mt-4 text-lg">Detailed specifications and global engineering standards for professional cue sports gear.</p>
+          <p className="text-slate-500 mt-4 text-lg font-medium italic">Detailed specifications and global engineering standards for professional cue sports gear.</p>
         </header>
 
         <div className="grid gap-6">
-          {labGuides.map((guide) => (
-            <Link 
-              key={guide} 
-              href={`/guides/${guide}`}
-              className="group bg-white border border-slate-200 p-10 rounded-[2.5rem] flex items-center justify-between hover:shadow-2xl hover:border-emerald-200 transition-all"
-            >
-              <div className="flex items-center gap-6">
-                <div className="p-5 bg-slate-50 rounded-2xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                  <Microscope size={32} />
+          {guides.length > 0 ? (
+            guides.map((guide: any) => (
+              <Link 
+                key={guide.slug} 
+                href={`/guides/${guide.slug}`}
+                className="group bg-white border border-slate-200 p-10 rounded-[2.5rem] flex items-center justify-between hover:shadow-2xl hover:border-emerald-200 transition-all duration-500"
+              >
+                <div className="flex items-center gap-6">
+                  {/* Icon or Thumbnail Preview */}
+                  <div className="relative w-20 h-20 shrink-0 overflow-hidden rounded-2xl bg-slate-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">
+                    {guide.mainImage ? (
+                      <Image 
+                        src={urlFor(guide.mainImage).url()} 
+                        alt={guide.title}
+                        fill
+                        className="object-cover opacity-80 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all"
+                      />
+                    ) : (
+                      <Microscope size={32} />
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h2 className="font-heading text-3xl md:text-4xl font-black uppercase italic tracking-tight text-slate-900 leading-none group-hover:text-emerald-600 transition-colors">
+                      {guide.title}
+                    </h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 italic">
+                      {guide.categoryTitle || "Technical Analysis"} • {guide.snippet ? `${guide.snippet}...` : "Full Specification Pending"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-4xl font-black uppercase italic tracking-tight text-slate-900 leading-none capitalize">{guide.replace('-', ' ')}</h2>
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2">Technical Specifications</p>
-                </div>
-              </div>
-              <ChevronRight className="text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-2 transition-all" size={40} />
-            </Link>
-          ))}
+                
+                <ChevronRight className="text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-2 transition-all" size={40} />
+              </Link>
+            ))
+          ) : (
+            // Fallback if no guides are found in Sanity
+            <div className="py-32 text-center border-2 border-dashed border-slate-200 rounded-[3.5rem]">
+               <p className="text-slate-400 font-black uppercase tracking-widest text-xs">
+                 The Lab is currently empty. Re-rack Sanity and try again.
+               </p>
+            </div>
+          )}
         </div>
       </div>
     </main>
