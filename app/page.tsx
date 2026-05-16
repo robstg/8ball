@@ -6,36 +6,45 @@ import { GearShowcase } from "@/components/gear-showcase"
 import { BottomNav } from "@/components/bottom-nav"
 import Link from "next/link" 
 
-// 1. THIS IS THE KEY: Forces Next.js to fetch fresh data on every request
+// Forces Next.js to fetch fresh data on every request
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function Home() {
-  // 2. We flatten the slug and add a 'no-store' cache rule
-  const posts = await client.fetch(`*[_type == "post"] | order(_createdAt desc) [0...7] {
-    title,
-    "slug": slug.current,
-    mainImage,
-    _createdAt,
-    "excerpt": coalesce(array::join(string::split(pt::text(body), "")[0..200], ""), "")
-  }`, 
-  {}, 
-  { cache: 'no-store' })
+  // THE DUAL-TRACK QUERY: 
+  // 1. We grab the latest 7 standard posts for the Masthead and BentoGrid
+  // 2. We grab the latest 3 guides for the GearShowcase section
+  const data = await client.fetch(`{
+    "posts": *[_type == "post"] | order(_createdAt desc) [0...7] {
+      title,
+      "slug": slug.current,
+      mainImage,
+      _createdAt,
+      "excerpt": coalesce(array::join(string::split(pt::text(body), "")[0..200], ""), "")
+    },
+    "gearGuides": *[_type == "guide"] | order(_createdAt desc) [0...3] {
+      title,
+      "slug": slug.current,
+      mainImage,
+      "category": category->title,
+      "score": score,
+      "badge": badge,
+      "info": coalesce(array::join(string::split(pt::text(body), "")[0..100], ""), "")
+    }
+  }`, {}, { cache: 'no-store' })
 
-  // 3. Look at your terminal (where you ran npm run dev) to see this:
-  console.log("HOME PAGE DEBUG - Posts Found:", posts?.length)
-  if (posts?.length > 0) {
-    console.log("LATEST POST TITLE:", posts[0].title)
-  }
+  const posts = data.posts || []
+  const gearGuides = data.gearGuides || []
 
-  const hasPosts = posts && posts.length > 0
+  // Logic for the main article section
+  const hasPosts = posts.length > 0
   const latestPost = hasPosts ? posts[0] : null
   const gridPosts = hasPosts ? posts.slice(1) : []
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-28 font-inter">
       
-      {/* Lead ball */}
+      {/* Lead ball — Latest masterclass */}
       <Masthead latestPost={latestPost} />
       
       <div className="max-w-7xl mx-auto px-6 mt-12">
@@ -43,7 +52,7 @@ export default async function Home() {
           <h2 className="text-[10px] uppercase tracking-[0.4em] font-black text-slate-400">
             The Latest Breaks
           </h2>
-          <Link href="/articles" className="text-[10px] font-bold uppercase text-green-600">
+          <Link href="/articles" className="text-[10px] font-bold uppercase text-emerald-600">
             View All Archive →
           </Link>
         </div>
@@ -60,7 +69,10 @@ export default async function Home() {
       </div>
       
       <RulesFeature />
-      <GearShowcase />
+
+      {/* THE INTEGRATION: Passing our guide data into the showcase component */}
+      <GearShowcase items={gearGuides} />
+
       <BottomNav />
     </main>
   )
