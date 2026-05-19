@@ -5,8 +5,7 @@ import Image from "next/image"
 import { ChevronRight, Microscope } from "lucide-react"
 import { Metadata } from "next"
 
-// 1. THE SEO HANDSHAKE: Only send the unique part of the title.
-// The Layout handles the "| Pot The Black" part automatically.
+// 1. THE ONLY SOURCE OF TRUTH: Next.js will use this to fill the Layout's %s
 export const metadata: Metadata = {
   title: "The Technical Lab",
   description: "Detailed specifications and global engineering standards for professional cue sports gear.",
@@ -33,7 +32,7 @@ export default async function GuidesPage() {
     <main className="min-h-screen bg-slate-50 pt-32 pb-20 px-6 font-body antialiased text-slate-900">
       <div className="max-w-4xl mx-auto">
         
-        {/* Visual Header: We keep the <h1> for the user, but it no longer affects the <head> */}
+        {/* Visual Header: Strictly for the UI, zero impact on the <head> tags */}
         <header className="mb-16 text-center">
           <div className="flex items-center gap-2 justify-center mb-4">
             <Microscope size={16} className="text-emerald-500" />
@@ -84,7 +83,7 @@ export default async function GuidesPage() {
             ))
           ) : (
             <div className="py-32 text-center border-2 border-dashed border-slate-200 rounded-[3.5rem]">
-               <p className="text-slate-400 font-black uppercase tracking-widest text-xs">
+               <p className="text-slate-400 font-black uppercase tracking-widest text-xs font-body">
                  The Lab is currently empty. Re-rack Sanity and try again.
                </p>
             </div>
