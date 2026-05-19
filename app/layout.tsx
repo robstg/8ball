@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from 'next/font/google';
-import Script from 'next/script'; // THE COMPONENT: Essential for GA4 in Next.js
+import Script from 'next/script'; // THE RE-ENTRY
 import LayoutWrapper from "@/components/layout-wrapper";
 import './globals.css';
 
@@ -35,8 +35,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        {/* THE TRACKING HANDSHAKE: Loading GA4 after the page becomes interactive */}
+      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-950`}>
+        {/* GOOGLE ANALYTICS: Placed here to avoid interfering with the Sitemap 404 issue */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-NF8MV8W5WJ"
           strategy="afterInteractive"
@@ -49,8 +49,7 @@ export default function RootLayout({
             gtag('config', 'G-NF8MV8W5WJ');
           `}
         </Script>
-      </head>
-      <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-950`}>
+
         <LayoutWrapper>
           {children}
         </LayoutWrapper>
