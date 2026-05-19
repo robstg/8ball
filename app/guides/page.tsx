@@ -10,7 +10,6 @@ export const revalidate = 0
 
 async function getGuides() {
   // THE QUERY: Fetches every 'guide' document from Sanity
-  // If your previews still aren't showing, check if your schema is named 'guide'
   const query = `*[_type == "guide"] | order(_createdAt desc) {
     title,
     "slug": slug.current,
@@ -28,6 +27,7 @@ export default async function GuidesPage() {
   return (
     <main className="min-h-screen bg-slate-50 pt-32 pb-20 px-6 font-body antialiased">
       <div className="max-w-4xl mx-auto">
+        {/* Your Original Technical Lab Header */}
         <header className="mb-16 text-center">
           <div className="flex items-center gap-2 justify-center mb-4">
             <Microscope size={16} className="text-emerald-500" />
@@ -76,7 +76,6 @@ export default async function GuidesPage() {
               </Link>
             ))
           ) : (
-            // Fallback if no guides are found in Sanity
             <div className="py-32 text-center border-2 border-dashed border-slate-200 rounded-[3.5rem]">
                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">
                  The Lab is currently empty. Re-rack Sanity and try again.
