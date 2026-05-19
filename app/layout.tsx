@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from 'next/font/google';
-import Script from 'next/script'; // THE RE-ENTRY
+import Script from 'next/script';
 import LayoutWrapper from "@/components/layout-wrapper";
 import './globals.css';
 
@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-950`}>
-        {/* GOOGLE ANALYTICS: Placed here to avoid interfering with the Sitemap 404 issue */}
+        {/* GA4 INTEGRATION: Measurement ID G-NF8MV8W5WJ */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-NF8MV8W5WJ"
           strategy="afterInteractive"
