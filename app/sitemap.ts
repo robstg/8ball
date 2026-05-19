@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }`)
 
   // 1. Static Hubs (The Lead Balls)
-  const staticRoutes = ['', '/articles', '/rules', '/guides', '/about'].map((route) => ({
+  const staticRoutes = ['', '/articles', '/rules', '/guides', '/about-us'].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
