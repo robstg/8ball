@@ -1,15 +1,14 @@
 import { MetadataRoute } from 'next'
 import { client } from '@/sanity/lib/client'
 
-// THE RE-RACK: Use 'force-dynamic' to prevent build-time 404s
 export const dynamic = 'force-dynamic'
-export const revalidate = 0; 
+export const revalidate = 0;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://pottheblack.com'
 
+  // THE FAIL-SAFE FETCH: Using a try-catch to prevent the 404 crash
   try {
-    // Fetching data from the Lab
     const data = await client.fetch(`{
       "posts": *[_type == "post"] { "slug": slug.current, _updatedAt },
       "rules": *[_type == "rule"] { "slug": slug.current, "sport": sport, _updatedAt },
@@ -17,71 +16,74 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "categories": *[_type == "category"] { "slug": slug.current }
     }`)
 
-    // 1. Static Hubs (The Lead Balls)
-    const staticRoutes = ['', '/articles', '/rules', '/guides', '/about-us'].map((route) => ({
+    // 1. STATIC HUB ROUTES
+    const staticRoutes: MetadataRoute.Sitemap = [
+      '', 
+      '/articles', 
+      '/rules', 
+      '/guides', 
+      '/about-us'
+    ].map((route) => ({
       url: `${baseUrl}${route}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
+      lastModified: new Date().toISOString(),
+      changeFrequency: 'weekly',
       priority: 1.0,
     }))
 
-    // 2. Category Archives (The Sport Pillars)
-    const categoryRoutes = (data.categories || []).map((cat: any) => ({
+    // 2. CATEGORY PILLARS (/pool, /snooker)
+    const categoryRoutes: MetadataRoute.Sitemap = (data.categories || []).map((cat: any) => ({
       url: `${baseUrl}/${cat.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
+      lastModified: new Date().toISOString(),
+      changeFrequency: 'weekly',
       priority: 0.9,
     }))
 
-    // 3. Articles (Masterclasses)
-    const postRoutes = (data.posts || []).map((p: any) => ({
+    // 3. MASTERCLASSES
+    const postRoutes: MetadataRoute.Sitemap = (data.posts || []).map((p: any) => ({
       url: `${baseUrl}/articles/${p.slug}`,
-      lastModified: new Date(p._updatedAt || new Date()),
-      changeFrequency: 'weekly' as const,
+      lastModified: p._updatedAt ? new Date(p._updatedAt).toISOString() : new Date().toISOString(),
+      changeFrequency: 'weekly',
       priority: 0.8,
     }))
 
-    // 4. Technical Gear Guides
-    const guideRoutes = (data.guides || []).map((g: any) => ({
+    // 4. GEAR GUIDES
+    const guideRoutes: MetadataRoute.Sitemap = (data.guides || []).map((g: any) => ({
       url: `${baseUrl}/guides/${g.slug}`,
-      lastModified: new Date(g._updatedAt || new Date()),
-      changeFrequency: 'monthly' as const,
+      lastModified: g._updatedAt ? new Date(g._updatedAt).toISOString() : new Date().toISOString(),
+      changeFrequency: 'monthly',
       priority: 0.7,
     }))
 
-    // 5. Rule Archives by Sport
+    // 5. SPORT HUBS (/rules/pool)
     const uniqueSports = Array.from(new Set((data.rules || []).map((r: any) => r.sport)))
-    const sportHubRoutes = uniqueSports.map((sport: any) => ({
+    const sportHubRoutes: MetadataRoute.Sitemap = uniqueSports.map((sport: any) => ({
       url: `${baseUrl}/rules/${sport}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
+      lastModified: new Date().toISOString(),
+      changeFrequency: 'weekly',
       priority: 0.8,
     }))
 
-    // 6. Deep Nested Rules
-    const ruleRoutes = (data.rules || []).map((rule: any) => ({
+    // 6. DEEP RULES
+    const ruleRoutes: MetadataRoute.Sitemap = (data.rules || []).map((rule: any) => ({
       url: `${baseUrl}/rules/${rule.sport}/${rule.slug}`,
-      lastModified: new Date(rule._updatedAt || new Date()),
-      changeFrequency: 'monthly' as const,
+      lastModified: rule._updatedAt ? new Date(rule._updatedAt).toISOString() : new Date().toISOString(),
+      changeFrequency: 'monthly',
       priority: 0.7,
     }))
 
     return [
-      ...staticRoutes, 
+      ...staticRoutes,
       ...categoryRoutes,
-      ...sportHubRoutes, 
-      ...postRoutes, 
+      ...sportHubRoutes,
+      ...postRoutes,
       ...guideRoutes,
-      ...ruleRoutes
+      ...ruleRoutes,
     ]
-  } catch (error) {
-    console.error("Sitemap generation error:", error);
-    // FALLBACK: If Sanity fails, at least provide the static routes so it's not a 404
+  } catch (e) {
+    // If Sanity is down, return the bare minimum so Google doesn't see a 404
     return [
-      { url: `${baseUrl}/`, lastModified: new Date() },
-      { url: `${baseUrl}/about-us`, lastModified: new Date() },
-      { url: `${baseUrl}/rules`, lastModified: new Date() },
-      { url: `${baseUrl}/guides`, lastModified: new Date() },
+      { url: `${baseUrl}/`, lastModified: new Date().toISOString() },
+      { url: `${baseUrl}/about-us`, lastModified: new Date().toISOString() }
     ]
   }
 }
