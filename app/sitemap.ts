@@ -1,39 +1,48 @@
 import { MetadataRoute } from 'next'
+import { client } from '@/sanity/lib/client'
 
-// NO async, NO await, NO Sanity. Just raw speed.
-export default function sitemap(): MetadataRoute.Sitemap {
+// We re-introduce async, but we strip the query to the absolute bare bones
+// to keep the "think time" under the threshold of the greedy route.
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://pottheblack.com'
 
-  return [
-    {
-      url: `${baseUrl}`,
+  try {
+    // Shot 2: Fetching only Article Slugs. No images, no dates, no categories.
+    // This keeps the response extremely fast.
+    const posts = await client.fetch(`*[_type == "post"] { "slug": slug.current }`);
+
+    const postRoutes = (posts || []).map((p: any) => ({
+      url: `${baseUrl}/articles/${p.slug}`,
       lastModified: new Date(),
-      changeFrequency: 'always',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/pool`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    }));
+
+    // The Hardcoded Discipline Hubs (from the version that worked)
+    const disciplineRoutes = ['pool', 'snooker', '9-ball'].map((slug) => ({
+      url: `${baseUrl}/${slug}`,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
+      changeFrequency: 'weekly' as const,
       priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/snooker`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/9-ball`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/about-us`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-  ]
+    }));
+
+    return [
+      {
+        url: baseUrl,
+        lastModified: new Date(),
+        changeFrequency: 'always' as const,
+        priority: 1.0,
+      },
+      ...disciplineRoutes,
+      ...postRoutes,
+    ];
+    
+  } catch (error) {
+    // If the fetch takes too long or fails, return the "Safe" version immediately
+    return [
+      { url: baseUrl, lastModified: new Date() },
+      { url: `${baseUrl}/pool`, lastModified: new Date() },
+      { url: `${baseUrl}/snooker`, lastModified: new Date() },
+    ];
+  }
 }
