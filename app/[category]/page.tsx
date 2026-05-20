@@ -8,7 +8,6 @@ import { cn, getCategoryStyles } from '@/lib/utils';
 import { Microscope, ArrowRight } from 'lucide-react';
 import { Metadata } from 'next';
 
-// THE REFRESH FIX: Ensures the lab data is always fresh
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +17,6 @@ interface CategoryPageProps {
   }>;
 }
 
-// THE SEO FIX: Dynamic Metadata for a global audience
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category } = await params;
   
@@ -26,7 +24,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const title = category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
 
   return {
-    title: title, // This replaces the %s in your root layout template
+    title: title,
     description: `Advanced technical tips, structural drills, and physics-based breakdowns for ${title} players worldwide.`,
   };
 }
@@ -54,13 +52,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
 
   // --- THE SITEMAP BYPASS ---
-  // This prevents this dynamic route from "stealing" technical file requests
+  // This explicitly stops this dynamic route from "trapping" technical files
   const reservedFiles = ['sitemap.xml', 'robots.txt', 'favicon.ico'];
   if (reservedFiles.includes(category.toLowerCase())) {
+    // Calling notFound() here allows Next.js to check for the actual sitemap.ts file
     notFound(); 
   }
 
-  // 9-ball is now a verified discipline in the archive
   const validCategories = ['pool', 'snooker', '9-ball'];
   const currentCategory = category.toLowerCase().trim();
 
@@ -73,7 +71,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-body antialiased">
-      
       <header className="pt-40 pb-20 bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex items-center gap-2 mb-6">
