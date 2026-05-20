@@ -1,48 +1,52 @@
 import { MetadataRoute } from 'next'
-import { client } from '@/sanity/lib/client'
 
-export const dynamic = 'force-dynamic'
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+// NO async, NO Sanity. Pure, lightning-fast static XML.
+export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://pottheblack.com'
+  const now = new Date()
 
-  try {
-    // Shot 4: We go back to ONLY fetching Posts. 
-    // We will add the core Rules and Guides manually for now to keep it lightning fast.
-    const posts = await client.fetch(`*[_type == "post"] { "slug": slug.current }`);
+  // 1. Discipline Hubs (The Big Three)
+  const disciplines = ['pool', 'snooker', '9-ball'].map((slug) => ({
+    url: `${baseUrl}/${slug}`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: 0.9,
+  }))
 
-    const postRoutes = (posts || []).map((p: any) => ({
-      url: `${baseUrl}/articles/${p.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }));
+  // 2. High-Value Articles (Add your top performers here manually)
+  const topArticles = [
+    'cue-action-physics-breakdown',
+    '8-ball-tactical-masterclass',
+    'snooker-safety-play-mechanics'
+  ].map((slug) => ({
+    url: `${baseUrl}/articles/${slug}`,
+    lastModified: now,
+    changeFrequency: 'monthly' as const,
+    priority: 0.8,
+  }))
 
-    // Manual "Power" Links (These are your most important non-article pages)
-    const manualRoutes: MetadataRoute.Sitemap = [
-      { url: `${baseUrl}/rules/8-ball/world-rules`, priority: 0.6 },
-      { url: `${baseUrl}/rules/snooker/official-rules`, priority: 0.6 },
-      { url: `${baseUrl}/guides/cue-action-physics`, priority: 0.8 },
-    ];
+  // 3. Technical Rules & Guides
+  const technicalHubs = [
+    { url: `${baseUrl}/rules`, priority: 0.7 },
+    { url: `${baseUrl}/guides`, priority: 0.7 },
+    { url: `${baseUrl}/articles`, priority: 0.7 },
+    { url: `${baseUrl}/about-us`, priority: 0.5 },
+  ].map(route => ({
+    ...route,
+    url: route.url,
+    lastModified: now,
+    changeFrequency: 'monthly' as const,
+  }))
 
-    const disciplineRoutes = ['pool', 'snooker', '9-ball'].map((slug) => ({
-      url: `${baseUrl}/${slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.9,
-    }));
-
-    return [
-      { url: baseUrl, lastModified: new Date(), changeFrequency: 'always' as const, priority: 1.0 },
-      { url: `${baseUrl}/about-us`, lastModified: new Date(), priority: 0.5 },
-      { url: `${baseUrl}/articles`, lastModified: new Date(), priority: 0.8 },
-      { url: `${baseUrl}/rules`, lastModified: new Date(), priority: 0.8 },
-      ...disciplineRoutes,
-      ...postRoutes,
-      ...manualRoutes,
-    ];
-    
-  } catch (error) {
-    return [{ url: baseUrl, lastModified: new Date() }];
-  }
+  return [
+    {
+      url: baseUrl,
+      lastModified: now,
+      changeFrequency: 'always' as const,
+      priority: 1.0,
+    },
+    ...disciplines,
+    ...topArticles,
+    ...technicalHubs,
+  ]
 }
