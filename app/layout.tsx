@@ -14,18 +14,14 @@ const inter = Inter({
   variable: '--font-body'
 });
 
+// THE CLEAN SHOT: Ensuring metadata doesn't conflict with technical files
 export const metadata: Metadata = {
   title: {
     default: "Pot The Black | The Technical Cue Sports Archive",
     template: "%s | Pot The Black"
   },
-  description: "Advanced mechanical analysis and tactical breakdowns for 8-ball and snooker players worldwide. No fluff, just physics.",
-  openGraph: {
-    title: "Pot The Black | The Technical Cue Sports Archive",
-    siteName: "Pot The Black",
-    locale: "en_US",
-    type: "website",
-  },
+  description: "Advanced mechanical analysis and tactical breakdowns for 8-ball and snooker players worldwide.",
+  metadataBase: new URL('https://pottheblack.com'), // ADD THIS: Helps Next.js resolve sitemap paths
 };
 
 export default function RootLayout({
@@ -36,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-slate-50 text-slate-950`}>
-        {/* GA4 INTEGRATION: Measurement ID G-NF8MV8W5WJ */}
+        {/* GA4: Keeping it here but ensuring it's the ONLY thing in the body besides the wrapper */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-NF8MV8W5WJ"
           strategy="afterInteractive"
