@@ -50,7 +50,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
               >
                 Read Masterclass
               </Link>
-              <Link href="/about" className="px-10 py-5 rounded-full border border-slate-200 text-slate-900 font-black uppercase tracking-widest hover:bg-white/50 transition-colors">
+              <Link href="/about-us" className="px-10 py-5 rounded-full border border-slate-200 text-slate-900 font-black uppercase tracking-widest hover:bg-white/50 transition-colors">
                 Our Story
               </Link>
             </div>
