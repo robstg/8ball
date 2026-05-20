@@ -1,52 +1,50 @@
 import { MetadataRoute } from 'next'
+import { client } from '@/sanity/lib/client'
 
-// NO async, NO Sanity. Pure, lightning-fast static XML.
-export default function sitemap(): MetadataRoute.Sitemap {
+// THE KEY: This tells Next.js to fetch this data during 'npm run build'
+// and cache the result. It won't try to re-fetch on every visit.
+export const revalidate = false; 
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://pottheblack.com'
-  const now = new Date()
 
-  // 1. Discipline Hubs (The Big Three)
-  const disciplines = ['pool', 'snooker', '9-ball'].map((slug) => ({
-    url: `${baseUrl}/${slug}`,
-    lastModified: now,
-    changeFrequency: 'weekly' as const,
-    priority: 0.9,
-  }))
+  try {
+    // We fetch the slug AND the last updated timestamp from Sanity
+    const data = await client.fetch(`{
+      "posts": *[_type == "post"] { "slug": slug.current, _updatedAt },
+      "categories": *[_type == "category"] { "slug": slug.current }
+    }`);
 
-  // 2. High-Value Articles (Add your top performers here manually)
-  const topArticles = [
-    'cue-action-physics-breakdown',
-    '8-ball-tactical-masterclass',
-    'snooker-safety-play-mechanics'
-  ].map((slug) => ({
-    url: `${baseUrl}/articles/${slug}`,
-    lastModified: now,
-    changeFrequency: 'monthly' as const,
-    priority: 0.8,
-  }))
+    const postRoutes = (data.posts || []).map((p: any) => ({
+      url: `${baseUrl}/articles/${p.slug}`,
+      // Use the actual date from Sanity
+      lastModified: new Date(p._updatedAt), 
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    }));
 
-  // 3. Technical Rules & Guides
-  const technicalHubs = [
-    { url: `${baseUrl}/rules`, priority: 0.7 },
-    { url: `${baseUrl}/guides`, priority: 0.7 },
-    { url: `${baseUrl}/articles`, priority: 0.7 },
-    { url: `${baseUrl}/about-us`, priority: 0.5 },
-  ].map(route => ({
-    ...route,
-    url: route.url,
-    lastModified: now,
-    changeFrequency: 'monthly' as const,
-  }))
+    const disciplineRoutes = ['pool', 'snooker', '9-ball'].map((slug) => ({
+      url: `${baseUrl}/${slug}`,
+      lastModified: new Date(), // These hubs change whenever an article is added
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    }));
 
-  return [
-    {
-      url: baseUrl,
-      lastModified: now,
-      changeFrequency: 'always' as const,
-      priority: 1.0,
-    },
-    ...disciplines,
-    ...topArticles,
-    ...technicalHubs,
-  ]
+    return [
+      {
+        url: baseUrl,
+        lastModified: new Date(),
+        changeFrequency: 'daily' as const,
+        priority: 1.0,
+      },
+      ...disciplineRoutes,
+      ...postRoutes,
+    ];
+    
+  } catch (error) {
+    // If the build-time fetch fails, the build will fail, 
+    // alerting you BEFORE the site goes live.
+    console.error("Sitemap Build Error:", error);
+    return [{ url: baseUrl, lastModified: new Date() }];
+  }
 }
