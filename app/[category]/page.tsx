@@ -53,6 +53,13 @@ async function getArticlesByCategory(categorySlug: string) {
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
 
+  // --- THE SITEMAP BYPASS ---
+  // This prevents this dynamic route from "stealing" technical file requests
+  const reservedFiles = ['sitemap.xml', 'robots.txt', 'favicon.ico'];
+  if (reservedFiles.includes(category.toLowerCase())) {
+    notFound(); 
+  }
+
   // 9-ball is now a verified discipline in the archive
   const validCategories = ['pool', 'snooker', '9-ball'];
   const currentCategory = category.toLowerCase().trim();
