@@ -7,38 +7,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://pottheblack.com'
 
   try {
-    // EXPANDED QUERY: Pulling articles, guides, and rules in one quick strike
-    const data = await client.fetch(`{
-      "posts": *[_type == "post"] { "slug": slug.current },
-      "guides": *[_type == "guide"] { "slug": slug.current },
-      "rules": *[_type == "rule"] { "slug": slug.current, "sport": sport }
-    }`);
+    // Shot 4: We go back to ONLY fetching Posts. 
+    // We will add the core Rules and Guides manually for now to keep it lightning fast.
+    const posts = await client.fetch(`*[_type == "post"] { "slug": slug.current }`);
 
-    // 1. Articles
-    const postRoutes = (data.posts || []).map((p: any) => ({
+    const postRoutes = (posts || []).map((p: any) => ({
       url: `${baseUrl}/articles/${p.slug}`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.7,
     }));
 
-    // 2. Technical Guides
-    const guideRoutes = (data.guides || []).map((g: any) => ({
-      url: `${baseUrl}/guides/${g.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
-    }));
+    // Manual "Power" Links (These are your most important non-article pages)
+    const manualRoutes: MetadataRoute.Sitemap = [
+      { url: `${baseUrl}/rules/8-ball/world-rules`, priority: 0.6 },
+      { url: `${baseUrl}/rules/snooker/official-rules`, priority: 0.6 },
+      { url: `${baseUrl}/guides/cue-action-physics`, priority: 0.8 },
+    ];
 
-    // 3. Rules (mapped to their sport/slug structure)
-    const ruleRoutes = (data.rules || []).map((r: any) => ({
-      url: `${baseUrl}/rules/${r.sport}/${r.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly' as const,
-      priority: 0.6,
-    }));
-
-    // 4. Static Discipline Hubs
     const disciplineRoutes = ['pool', 'snooker', '9-ball'].map((slug) => ({
       url: `${baseUrl}/${slug}`,
       lastModified: new Date(),
@@ -49,14 +35,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [
       { url: baseUrl, lastModified: new Date(), changeFrequency: 'always' as const, priority: 1.0 },
       { url: `${baseUrl}/about-us`, lastModified: new Date(), priority: 0.5 },
+      { url: `${baseUrl}/articles`, lastModified: new Date(), priority: 0.8 },
+      { url: `${baseUrl}/rules`, lastModified: new Date(), priority: 0.8 },
       ...disciplineRoutes,
       ...postRoutes,
-      ...guideRoutes,
-      ...ruleRoutes,
+      ...manualRoutes,
     ];
     
   } catch (error) {
-    // Safe Fallback
     return [{ url: baseUrl, lastModified: new Date() }];
   }
 }
