@@ -241,4 +241,143 @@ const ptComponents = {
       </p>
     ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-8 border-emerald-500 pl-8 my-16 italic
+      <blockquote className="border-l-8 border-emerald-500 pl-8 my-16 italic text-3xl font-medium text-slate-800 leading-snug">
+        {children}
+      </blockquote>
+    ),
+  },
+};
+
+// ==================== MAIN PAGE ====================
+export default async function ArticlePage({ params }: Props) {
+  const { slug } = await params;
+
+  try {
+    const data = await client.fetch(
+      `{
+        "post": *[_type == "post" && slug.current == $slug][0]{
+          title,
+          mainImage,
+          _createdAt,
+          _updatedAt,
+          "authorName": author->name,
+          excerpt,
+          "snippet": array::join(string::split(pt::text(body), "")[0...160], ""),
+          body[]{
+            ...,
+            _type == "code" => { code, language }
+          }
+        },
+        "morePosts": *[_type == "post" && slug.current != $slug] | order(_createdAt desc)[0...3]{
+          title,
+          "slug": slug.current,
+          mainImage
+        }
+      }`,
+      { slug }
+    );
+
+    if (!data?.post) {
+      return <div className="pt-40 text-center">Article not found</div>;
+    }
+
+    const post = data.post;
+
+    return (
+      <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
+        <ArticleJsonLd post={post} slug={slug} />
+        <BreadcrumbJsonLd slug={slug} title={post.title} />
+
+        <div className="flex items-center gap-4 mb-10 flex-wrap">
+          <span className="bg-emerald-500 text-[10px] font-black uppercase px-3 py-1 text-white tracking-widest">
+            Masterclass
+          </span>
+          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+            {new Date(post._createdAt).toLocaleDateString("en-NZ", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          {post._updatedAt && post._updatedAt !== post._createdAt && (
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+              • Updated{" "}
+              {new Date(post._updatedAt).toLocaleDateString("en-NZ", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          )}
+        </div>
+
+        <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full text-slate-900">
+          {post.title}
+        </h1>
+
+        {post.mainImage && (
+          <div className="mb-24 w-full">
+            <Image
+              src={urlFor(post.mainImage).url()}
+              alt={`${post.title} - Pool Snooker Technique`}
+              width={2400}
+              height={1350}
+              className="rounded-[3rem] border border-slate-100 shadow-2xl w-full h-auto"
+              priority
+            />
+          </div>
+        )}
+
+        <div className="max-w-6xl w-full prose prose-slate prose-lg md:prose-xl !max-w-none">
+          <PortableText value={post.body} components={ptComponents} />
+        </div>
+
+        <section className="mt-40 pt-20 border-t border-slate-100">
+          <h2 className="font-heading text-4xl font-black uppercase italic tracking-tighter mb-12 text-slate-900">
+            More from the Lab
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {data.morePosts.map((p: any) => (
+              <Link
+                key={p.slug}
+                href={`/articles/${p.slug}`}
+                className="group"
+              >
+                <div className="relative aspect-video mb-4 overflow-hidden rounded-2xl border border-slate-100 shadow-md">
+                  <Image
+                    src={urlFor(p.mainImage).url()}
+                    alt={p.title}
+                    fill
+                    className="object-cover transition-transform group-hover:scale-105"
+                  />
+                </div>
+                <h3 className="text-lg font-black uppercase italic leading-tight text-slate-900 group-hover:text-emerald-600 transition-colors">
+                  {p.title}
+                </h3>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <div className="mt-24 pt-10 border-t border-slate-100 flex justify-between items-center">
+          <Link
+            href="/articles"
+            className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-emerald-600 transition-colors"
+          >
+            ← Back to Articles
+          </Link>
+          <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
+            Pot The Black © 2026
+          </span>
+        </div>
+      </article>
+    );
+  } catch (error) {
+    console.error("Article page error:", error);
+    return (
+      <div className="pt-40 text-center text-slate-600">
+        Something went wrong loading this article. Please try again later.
+      </div>
+    );
+  }
+}
