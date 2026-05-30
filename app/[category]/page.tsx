@@ -19,54 +19,57 @@ interface CategoryPageProps {
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category } = await params;
-  
-  // Clean up the string for the tab title
   const title = category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
 
   return {
-    title: title,
+    title: `${title} | Pot The Black`,
     description: `Advanced technical tips, structural drills, and physics-based breakdowns for ${title} players worldwide.`,
   };
 }
 
-async function getArticlesByCategory(categorySlug: string) {
-  const query = `*[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...12] {
-    title,
-    "slug": slug.current,
-    mainImage,
-    "snippet": array::join(string::split(pt::text(body), "")[0...140], "") + "...",
-    "date": publishedAt,
-    "categoryTitle": category->title
+// Optimized query to fetch category info AND articles in one go
+async function getCategoryData(categorySlug: string) {
+  const query = `{
+    "category": *[_type == "category" && slug.current == $categorySlug][0] {
+      title,
+      description
+    },
+    "articles": *[_type == "post" && category->slug.current == $categorySlug] | order(publishedAt desc) [0...12] {
+      title,
+      "slug": slug.current,
+      mainImage,
+      "snippet": array::join(string::split(pt::text(body), "")[0...140], "") + "...",
+      "date": publishedAt,
+      "categoryTitle": category->title
+    }
   }`;
 
   try {
-    const articles = await client.fetch(query, { categorySlug });
-    return articles;
+    return await client.fetch(query, { categorySlug });
   } catch (error) {
     console.error("Sanity fetch error:", error);
-    return [];
+    return { category: null, articles: [] };
   }
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params;
+  const currentCategory = category.toLowerCase().trim();
 
-  // --- THE SITEMAP BYPASS ---
-  // This explicitly stops this dynamic route from "trapping" technical files
+  // 1. THE SITEMAP BYPASS
   const reservedFiles = ['sitemap.xml', 'robots.txt', 'favicon.ico'];
-  if (reservedFiles.includes(category.toLowerCase())) {
-    // Calling notFound() here allows Next.js to check for the actual sitemap.ts file
+  if (reservedFiles.includes(currentCategory)) {
     notFound(); 
   }
 
-  const validCategories = ['pool', 'snooker', '9-ball'];
-  const currentCategory = category.toLowerCase().trim();
+  // 2. FETCH DATA (This replaces the hardcoded validCategories list)
+  const { category: categoryData, articles } = await getCategoryData(currentCategory);
 
-  if (!validCategories.includes(currentCategory)) {
+  // 3. IF CATEGORY DOESN'T EXIST IN SANITY, 404
+  if (!categoryData) {
     notFound();
   }
 
-  const articles = await getArticlesByCategory(currentCategory);
   const themeStyles = getCategoryStyles(currentCategory);
 
   return (
@@ -79,11 +82,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </div>
           
           <h1 className="font-heading text-7xl md:text-9xl font-black uppercase italic tracking-tighter leading-[0.8] text-slate-900">
-            {category.replace('-', ' ')}<span className="text-emerald-600">.</span>
+            {categoryData.title}<span className="text-emerald-600">.</span>
           </h1>
           
           <p className="mt-8 text-slate-500 text-xl max-w-2xl leading-relaxed font-medium italic">
-            Advanced mechanical analysis and physics-based breakdowns specifically for the <span className="text-slate-900 font-bold capitalize">{category.replace('-', ' ')}</span> discipline.
+            {categoryData.description || `Advanced mechanical analysis and physics-based breakdowns specifically for the ${categoryData.title} discipline.`}
           </p>
         </div>
       </header>
@@ -116,7 +119,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                         themeStyles
                     )}>
                         <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
-                        {category}
+                        {categoryData.title}
                     </span>
                 </div>
                 
@@ -143,7 +146,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <div className="text-center py-40 bg-white border border-slate-100 rounded-[3rem]">
             <Microscope className="mx-auto text-slate-200 mb-6" size={64} strokeWidth={1} />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
-              No reports found in the "{category}" archive.
+              No reports found in the "{categoryData.title}" archive.
             </p>
           </div>
         )}
