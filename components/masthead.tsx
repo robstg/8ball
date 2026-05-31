@@ -48,7 +48,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
                 href={`/articles/${latestPost.slug}`} 
                 className="px-10 py-5 rounded-full bg-emerald-500 text-white font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)]"
               >
-                Read Masterclass
+                Read Article
               </Link>
               <Link href="/about-us" className="px-10 py-5 rounded-full border border-slate-200 text-slate-900 font-black uppercase tracking-widest hover:bg-white/50 transition-colors">
                 Our Story
