@@ -55,9 +55,9 @@ export function Header() {
             </span>
           </div>
 
-          {/* Navigation - Touch Scrollable Container for Mobile Layouts */}
-          <div className="w-full max-w-xl overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4">
-            <nav className="flex items-center justify-start md:justify-center gap-8 md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] pb-2 mx-auto w-max">
+{/* Navigation - Fixed Full-Width Smooth Scroll */}
+          <div className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4 touch-pan-x">
+            <nav className="flex items-center justify-start md:justify-center gap-6 md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] pb-3 mx-auto w-max pr-6 md:pr-0">
               <Link href="/" className={linkStyle('/')}>Home</Link>
               <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
               <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
