@@ -25,9 +25,9 @@ export function Header() {
 
   return (
     <header className="w-full z-50 font-sans">
-      {/* Main Brand Bar (Tournament Green Felt Style) */}
+      {/* Main Brand Bar - Reduced bottom padding to tighten the gap */}
       <div 
-        className="relative pt-8 pb-20 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
+        className="relative pt-8 pb-12 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -55,7 +55,7 @@ export function Header() {
             </span>
           </div>
 
-          {/* Navigation - Grid layout on mobile, straight line on desktop */}
+          {/* Navigation - Grid on mobile, line on desktop */}
           <nav className="w-full max-w-2xl">
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-4 gap-x-2 md:flex md:items-center md:justify-center md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
               <Link href="/" className={linkStyle('/')}>Home</Link>
@@ -90,7 +90,8 @@ export function Header() {
         </form>
       </div>
       
-      <div className="h-2 w-full" />
+      {/* Dynamic spacing block to prevent the absolute search bar from clipping content */}
+      <div className="h-10 w-full" />
     </header>
   )
 }
