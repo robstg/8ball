@@ -11,7 +11,8 @@ export function Masthead({ latestPost }: { latestPost: any }) {
 
   return (
     /* THE FIX: Pulled mobile padding back to pt-16 and desktop to md:pt-20 to close the dead space */
-    <section className="relative px-6 pt-16 md:pt-20 md:px-12 lg:px-20 pb-16 bg-slate-50">
+
+      <section className="relative px-6 pt-16 md:pt-20 md:px-12 lg:px-20 pb-16 bg-white -mt-1">
       
       <div className="max-w-7xl mx-auto">
         {/* flex-col-reverse ensures the image is ON TOP for mobile users */}
