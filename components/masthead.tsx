@@ -10,7 +10,8 @@ export function Masthead({ latestPost }: { latestPost: any }) {
   if (!latestPost) return null;
 
   return (
-    <section className="relative px-6 pt-32 md:pt-40 md:px-12 lg:px-20 pb-20 bg-slate-50">
+    /* THE FIX: Pulled mobile padding back to pt-16 and desktop to md:pt-20 to close the dead space */
+    <section className="relative px-6 pt-16 md:pt-20 md:px-12 lg:px-20 pb-16 bg-slate-50">
       
       <div className="max-w-7xl mx-auto">
         {/* flex-col-reverse ensures the image is ON TOP for mobile users */}
@@ -39,7 +40,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
             
             {/* Excerpt Text */}
             <p className="mt-8 text-lg text-slate-500 max-w-md leading-relaxed">
-              {latestPost.excerpt || "Dive deep into the latest technical analysis and pro strategies for the modern player."}
+              {latestPost.excerpt || "Advanced technical analysis and pro strategies for the modern player."}
             </p>
             
             {/* Navigation Buttons */}
