@@ -25,9 +25,13 @@ export function Header() {
 
   return (
     <header className="w-full z-50 font-sans">
-      {/* Main Brand Bar - Reduced bottom padding to tighten the gap */}
+      {/* 
+        THE FIX: Changed pb-12 to pb-16 to drop the green wall further down.
+        Added a matching solid green background color to the main div fallback 
+        so the radial gradient seamlessly blocks out the white stripe background.
+      */}
       <div 
-        className="relative pt-8 pb-12 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
+        className="relative pt-8 pb-16 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f] bg-[#004d33]" 
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -55,7 +59,7 @@ export function Header() {
             </span>
           </div>
 
-          {/* Navigation - Grid on mobile, line on desktop */}
+          {/* Navigation - Grid Layout */}
           <nav className="w-full max-w-2xl">
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-4 gap-x-2 md:flex md:items-center md:justify-center md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
               <Link href="/" className={linkStyle('/')}>Home</Link>
@@ -90,8 +94,12 @@ export function Header() {
         </form>
       </div>
       
-      {/* Dynamic spacing block to prevent the absolute search bar from clipping content */}
-      <div className="h-10 w-full" />
+      {/* 
+        Surgical Spacer Fix: Reduced h-10 to h-4. 
+        Since the green bar is deeper now, we drop this down to keep the 
+        Masthead title tucked right underneath the search shadow.
+      */}
+      <div className="h-4 w-full" />
     </header>
   )
 }
