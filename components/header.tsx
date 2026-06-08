@@ -13,8 +13,8 @@ export function Header() {
 
   const linkStyle = (path: string) => 
     pathname === path 
-      ? "text-white border-b-2 border-green-400 pb-1" 
-      : "text-white/80 hover:text-green-400 transition-colors pb-1"
+      ? "text-white border-b-2 border-green-400 pb-1 whitespace-nowrap" 
+      : "text-white/80 hover:text-green-400 transition-colors pb-1 whitespace-nowrap"
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -55,15 +55,17 @@ export function Header() {
             </span>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex gap-12 text-[11px] font-black uppercase tracking-[0.2em]">
-            <Link href="/" className={linkStyle('/')}>Home</Link>
-            <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
-            <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
-            <Link href="/9-ball" className={linkStyle('/9-ball')}>9-Ball</Link>
-                <Link href="/news" className={linkStyle('/news')}>News</Link>
-            <Link href="/about-us" className={linkStyle('/about')}>About</Link>
-          </nav>
+          {/* Navigation - Touch Scrollable Container for Mobile Layouts */}
+          <div className="w-full max-w-xl overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4">
+            <nav className="flex items-center justify-start md:justify-center gap-8 md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] pb-2 mx-auto w-max">
+              <Link href="/" className={linkStyle('/')}>Home</Link>
+              <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
+              <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
+              <Link href="/9-ball" className={linkStyle('/9-ball')}>9-Ball</Link>
+              <Link href="/news" className={linkStyle('/news')}>News</Link>
+              <Link href="/about-us" className={linkStyle('/about-us')}>About</Link>
+            </nav>
+          </div>
         </div>
 
         {/* The "Floating" Search Bar */}
