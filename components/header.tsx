@@ -13,8 +13,8 @@ export function Header() {
 
   const linkStyle = (path: string) => 
     pathname === path 
-      ? "text-white border-b-2 border-green-400 pb-1 whitespace-nowrap" 
-      : "text-white/80 hover:text-green-400 transition-colors pb-1 whitespace-nowrap"
+      ? "text-white border-b-2 border-green-400 pb-0.5 whitespace-nowrap" 
+      : "text-white/80 hover:text-green-400 transition-colors pb-0.5 whitespace-nowrap"
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -27,7 +27,7 @@ export function Header() {
     <header className="w-full z-50 font-sans">
       {/* Main Brand Bar (Tournament Green Felt Style) */}
       <div 
-        className="relative pt-10 pb-20 px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
+        className="relative pt-8 pb-20 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f]" 
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -40,8 +40,8 @@ export function Header() {
         <div className="max-w-7xl mx-auto flex flex-col items-center relative z-10">
           
           {/* Centered Logo / Site Name */}
-          <div className="flex flex-col items-center mb-8">
-            <Link href="/" className="relative w-32 h-32 md:w-40 md:h-40 transition-transform hover:scale-105"> 
+          <div className="flex flex-col items-center mb-6 md:mb-8">
+            <Link href="/" className="relative w-24 h-24 md:w-40 md:h-40 transition-transform hover:scale-105"> 
               <Image 
                 src="/headerlogo.png" 
                 alt="Pot The Black Logo"
@@ -50,22 +50,22 @@ export function Header() {
                 priority
               />
             </Link>
-            <span className="text-white font-black italic uppercase tracking-tighter text-2xl mt-2">
+            <span className="text-white font-black italic uppercase tracking-tighter text-xl md:text-2xl mt-2">
               Pot The Black
             </span>
           </div>
 
-{/* Navigation - Fixed Full-Width Smooth Scroll */}
-          <div className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4 touch-pan-x">
-            <nav className="flex items-center justify-start md:justify-center gap-6 md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] pb-3 mx-auto w-max pr-6 md:pr-0">
+          {/* Navigation - Grid layout on mobile, straight line on desktop */}
+          <nav className="w-full max-w-2xl">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-4 gap-x-2 md:flex md:items-center md:justify-center md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
               <Link href="/" className={linkStyle('/')}>Home</Link>
               <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
               <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
               <Link href="/9-ball" className={linkStyle('/9-ball')}>9-Ball</Link>
               <Link href="/news" className={linkStyle('/news')}>News</Link>
               <Link href="/about-us" className={linkStyle('/about-us')}>About</Link>
-            </nav>
-          </div>
+            </div>
+          </nav>
         </div>
 
         {/* The "Floating" Search Bar */}
