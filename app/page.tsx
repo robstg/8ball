@@ -44,8 +44,13 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-28 font-inter">
       
-      {/* Lead ball — Latest masterclass */}
-      <Masthead latestPost={latestPost} />
+      {/* 
+        THE FIX: Added a protective wrapper with responsive top padding.
+        This offsets the header's absolute floating search bar on mobile screens.
+      */}
+      <div className="pt-12 md:pt-16">
+        <Masthead latestPost={latestPost} />
+      </div>
       
       <div className="max-w-7xl mx-auto px-6 mt-12">
         <div className="mb-8 border-b border-slate-200 pb-4 flex justify-between items-end">
