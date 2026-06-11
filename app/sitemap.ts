@@ -8,11 +8,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://pottheblack.com'
 
   try {
-    // ONE STRIKE: Fetch posts, guides, and rules in a single query
+    // FETCH: Pull posts, guides, rules, AND the specific about-us page data in one strike
     const data = await client.fetch(`{
       "posts": *[_type == "post"] { "slug": slug.current, _updatedAt },
       "guides": *[_type == "guide"] { "slug": slug.current, _updatedAt },
-      "rules": *[_type == "rule"] { "slug": slug.current, "sport": sport, _updatedAt }
+      "rules": *[_type == "rule"] { "slug": slug.current, "sport": sport, _updatedAt },
+      "aboutPage": *[_type == "page" && slug.current == "about-us"][0] { _updatedAt }
     }`);
 
     // 1. Technical Articles
@@ -47,6 +48,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     }));
 
+    // Determine the true Sanity modified date for about-us, fallback safely only if document doesn't exist
+    const aboutLastModified = data.aboutPage?._updatedAt 
+      ? new Date(data.aboutPage._updatedAt) 
+      : new Date('2026-06-12'); // Safe modern baseline fallback
+
     return [
       {
         url: baseUrl,
@@ -54,7 +60,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'daily' as const,
         priority: 1.0,
       },
-      { url: `${baseUrl}/about-us`, lastModified: new Date('2024-01-01'), priority: 0.5 },
+      { 
+        url: `${baseUrl}/about-us`, 
+        lastModified: aboutLastModified, // Pulls the exact Sanity table timestamp
+        changeFrequency: 'monthly' as const,
+        priority: 0.5 
+      },
       ...disciplineRoutes,
       ...postRoutes,
       ...guideRoutes,
