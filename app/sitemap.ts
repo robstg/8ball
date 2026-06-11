@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { client } from '@/sanity/lib/client'
 
-// Ensures this is generated once at build time for maximum speed
+// Ensures this is generated once at build time for maximum speed that is it boss
 export const revalidate = false; 
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
