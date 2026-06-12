@@ -85,8 +85,25 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             {categoryData.title}<span className="text-emerald-600">.</span>
           </h1>
           
-          <p className="mt-8 text-slate-500 text-xl max-w-2xl leading-relaxed font-medium italic">
-            {categoryData.description || `Advanced mechanical analysis and physics-based breakdowns specifically for the ${categoryData.title} discipline.`}
+    <p className="mt-8 text-slate-500 text-xl max-w-2xl leading-relaxed font-medium italic">
+            {categoryData.description || (() => {
+              const cat = categoryData.title?.toLowerCase() || '';
+              
+              if (cat === 'news') {
+                return `The live wire: Tournament updates, bracket drama, and global briefings straight from the circuit.`;
+              }
+              if (cat === 'snooker') {
+                return `Deep technical strategy, cue mechanics, and century-grade tactical maps.`;
+              }
+              if (cat === '8-ball') {
+                return `League-tested blueprints, table physics, and competitive run-out strategies.`;
+              }
+              if (cat === '9-ball') {
+                return `Aggressive rotation patterns, break dynamics, and high-tempo run-out execution.`;
+              }
+              
+              return `Strategic insights, technical breakdowns, and competitive data for ${categoryData.title}.`;
+            })()}
           </p>
         </div>
       </header>
