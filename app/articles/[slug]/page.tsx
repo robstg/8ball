@@ -334,7 +334,7 @@ export default async function ArticlePage({ params }: Props) {
 
         <section className="mt-40 pt-20 border-t border-slate-100">
           <h2 className="font-heading text-4xl font-black uppercase italic tracking-tighter mb-12 text-slate-900">
-            More from the Lab
+            More from the Table
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {data.morePosts.map((p: any) => (
