@@ -82,8 +82,18 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
   const resolvedParams = await params
   const { sport, slug } = resolvedParams
 
+  // THE FIX: Deep asset projection tells Sanity to pull raw image metadata inside the body block array
   const rule = await client.fetch(
-    `*[_type == "rule" && slug.current == $ruleSlug][0]`,
+    `*[_type == "rule" && slug.current == $ruleSlug][0]{
+      ...,
+      content[]{
+        ...,
+        asset->{
+          ...,
+          metadata
+        }
+      }
+    }`,
     { ruleSlug: slug || "" }
   )
 
@@ -130,6 +140,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         </div>
 
         <div className="prose-custom">
+          {/* Now containing perfectly resolved deep asset fields */}
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
       </article>
