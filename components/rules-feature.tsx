@@ -10,66 +10,66 @@ const RULES_DATABASE = {
     {
       title: "Opening Break",
       description: "Rack tightly. The cue ball must pocket a ball or drive 4 balls to the rails to avoid a re-rack.",
-      link: "/rules/8-ball-break"
+      link: "/rules/8-ball"
     },
     {
       title: "Calling Shots", 
       description: "BCA standards require calling the ball and pocket. Casual 'pub' rules often differ—check the local house rules.",
-      link: "/rules/8-ball-calling-shots"
+      link: "/rules/8-ball"
     },
     {
       title: "Fouls & Ball in Hand",
       description: "Any foul results in ball-in-hand for the opponent, placed anywhere on the table (not just behind the headstring).",
-      link: "/rules/8-ball-fouls"
+      link: "/rules/8-ball"
     },
     {
       title: "Winning the Game",
       description: "Cleanly pocket the 8-ball after your group is gone. Scratching on the 8-ball is an automatic loss.",
-      link: "/rules/8-ball-winning"
+      link: "/rules/8-ball"
     }
   ],
   "9-Ball": [
     {
       title: "The Push Out",
       description: "Immediately following a legal break, the shooter may 'push out' to a better position without penalty.",
-      link: "/rules/9-ball-push-out"
+      link: "/rules/9-ball"
     },
     {
       title: "Lowest Ball First",
       description: "The cue ball must always strike the lowest numbered ball on the table first to be a legal shot.",
-      link: "/rules/9-ball-legal-hit"
+      link: "/rules/9-ball"
     },
     {
       title: "Golden Break",
       description: "Pocketing the 9-ball on the break is an instant win, provided the break was legal.",
-      link: "/rules/9-ball-winning"
+      link: "/rules/9-ball"
     },
     {
       title: "Three-Foul Rule",
       description: "Committing three consecutive fouls in one rack results in an immediate loss of the frame.",
-      link: "/rules/9-ball-three-foul"
+      link: "/rules/9-ball"
     }
   ],
   "Snooker": [
     {
       title: "The Miss Rule",
       description: "If a player fails to strike the 'ball on' and the ref deems they didn't make a best effort, it's a Foul and a Miss.",
-      link: "/rules/snooker-miss"
+      link: "/rules/snooker"
     },
     {
       title: "Touching Ball",
       description: "If the cue ball is touching an object ball, the player must play 'away' from it without it moving.",
-      link: "/rules/snooker-touching"
+      link: "/rules/snooker"
     },
     {
       title: "Foul Values",
       description: "Fouls are penalized between 4 and 7 points depending on the balls involved in the infraction.",
-      link: "/rules/snooker-fouls"
+      link: "/rules/snooker"
     },
     {
       title: "The Re-spotted Black",
       description: "If scores are tied after the final black is potted, the black is re-spotted for a sudden-death finish.",
-      link: "/rules/snooker-respot"
+      link: "/rules/snooker"
     }
   ]
 }
