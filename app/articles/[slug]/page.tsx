@@ -236,7 +236,7 @@ const ptComponents = {
       </h3>
     ),
     normal: ({ children }: any) => (
-      <p className="mb-8 text-slate-700 leading-relaxed text-xl font-light font-body">
+      <p className="mb-8 text-slate-700 leading-relaxed text-xl font-light font-body max-w-none w-full">
         {children}
       </p>
     ),
