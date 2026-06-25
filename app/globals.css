@@ -31,6 +31,17 @@
     @apply bg-background text-foreground antialiased selection:bg-primary selection:text-black;
   }
 
+  @layer utilities {
+  .drop-cap::first-letter {
+    float: left;
+    font-size: 4.5em;
+    font-weight: 900;
+    line-height: 0.75;
+    margin: 0.05em 0.12em 0 0;
+    color: #b5a57a;
+  }
+}
+
   /* --- AUTOMATIC MODERN STYLING --- */
   
   h1 {
