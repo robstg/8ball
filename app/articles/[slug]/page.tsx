@@ -328,7 +328,7 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
 
-        <div className="max-w-6xl w-full prose prose-slate prose-lg md:prose-xl !max-w-none drop-cap">
+  <div className="w-full prose prose-slate prose-lg md:prose-xl max-w-none drop-cap">
           <PortableText value={post.body} components={ptComponents} />
         </div>
 
