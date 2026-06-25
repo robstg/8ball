@@ -3,6 +3,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─────────────────────────────────────────────
+   DESIGN TOKENS
+   Gold is the single brand colour for PTB.
+   oklch(0.74 0.09 85) ≈ #b5a57a — warm gold
+   that holds contrast on both dark & light bg.
+───────────────────────────────────────────── */
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -37,6 +44,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* PTB brand gold */
+  --gold: oklch(0.74 0.09 85);
+  --gold-muted: oklch(0.74 0.09 85 / 0.35);
 }
 
 .dark {
@@ -72,11 +83,18 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* Gold stays the same in dark mode — it's designed for dark bg */
+  --gold: oklch(0.74 0.09 85);
+  --gold-muted: oklch(0.74 0.09 85 / 0.35);
 }
 
 @theme inline {
   --font-sans: 'Geist', 'Geist Fallback';
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  /* Serif for display headings — loaded via next/font or a <link> in layout */
+  --font-serif: 'Playfair Display', 'Georgia', serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -113,6 +131,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Expose gold as a Tailwind colour utility:
+     text-gold, bg-gold, border-gold, etc. */
+  --color-gold: var(--gold);
+  --color-gold-muted: var(--gold-muted);
 }
 
 @layer base {
@@ -121,5 +144,185 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   MAGAZINE TYPOGRAPHY — ARTICLE PAGES
+   Targets the prose content area. Adjust the
+   wrapper selector to match your article layout
+   component (e.g. .article-body, .prose, etc.)
+───────────────────────────────────────────── */
+
+@layer components {
+
+  /* Article H1 — tighter, heavier, more editorial */
+  .article-body h1,
+  .article-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 800;
+  }
+
+  /* Section headers get a gold left rule */
+  .article-body h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    border-left: 3px solid var(--gold);
+    padding-left: 0.7rem;
+    margin-top: 2.5rem;
+    margin-bottom: 0.6rem;
+  }
+
+  /* H3 — restrained italic, no extra weight */
+  .article-body h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-style: italic;
+    margin-top: 1.75rem;
+    margin-bottom: 0.4rem;
+    color: var(--muted-foreground);
+  }
+
+  /* Body copy — slightly looser for long reads */
+  .article-body p {
+    font-size: 1.075rem;
+    line-height: 1.82;
+    max-width: 68ch;
+  }
+
+  /* Drop cap on opening paragraph */
+  .article-body > p:first-of-type::first-letter {
+    font-family: var(--font-serif);
+    font-size: 3.8em;
+    font-weight: 900;
+    float: left;
+    line-height: 0.78;
+    margin: 0.06em 0.1em 0 0;
+    color: var(--gold);
+  }
+
+  /* Pull quote — double gold rule, centred */
+  .article-body blockquote {
+    border-left: none;
+    border-top: 2px solid var(--gold);
+    border-bottom: 2px solid var(--gold);
+    margin: 2.25rem 0;
+    padding: 1.1rem 0;
+    font-size: 1.25rem;
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* Article meta line — category · date */
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 1.25rem;
+  }
+
+  .article-meta::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 2px;
+    background-color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  /* Cover image — subtle depth */
+  .article-cover-image {
+    border-radius: 2px;
+    box-shadow: 0 6px 40px oklch(0 0 0 / 0.45);
+    margin-bottom: 2.25rem;
+  }
+
+  /* ── AUTHOR BIO ──────────────────────────── */
+  .author-bio {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.1rem;
+    margin: 3rem auto 2rem;
+    padding: 1.4rem 1.6rem;
+    border-top: 1px solid var(--gold-muted);
+    border-bottom: 1px solid var(--gold-muted);
+    max-width: 68ch;
+  }
+
+  .author-bio__avatar {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--gold);
+    /* Dark text on gold background */
+    color: oklch(0.145 0 0);
+    font-size: 1.2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .author-bio__label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 0.2rem;
+  }
+
+  .author-bio__text {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--foreground);
+  }
+
+  .author-bio__link {
+    color: var(--gold);
+    text-decoration: none;
+    border-bottom: 1px solid var(--gold-muted);
+    transition: border-color 0.15s ease;
+  }
+
+  .author-bio__link:hover {
+    border-color: var(--gold);
+  }
+
+  /* ── RELATED ARTICLES HEADER ─────────────── */
+  .related-heading {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--gold-muted);
+    margin-bottom: 1.25rem;
+  }
+
+  /* ── MOBILE ──────────────────────────────── */
+  @media (max-width: 640px) {
+    .author-bio {
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 1.1rem 1rem;
+    }
+
+    .article-body > p:first-of-type::first-letter {
+      font-size: 3em;
+    }
   }
 }
