@@ -111,7 +111,7 @@ function ArticleJsonLd({ post, slug }: { post: any; slug: string }) {
       name: "Pot The Black",
       logo: {
         "@type": "ImageObject",
-        url: "https://pottheblack.com/logo.png", 
+        url: "https://pottheblack.com/logo.png",
       },
     },
     mainEntityOfPage: {
@@ -162,9 +162,47 @@ function BreadcrumbJsonLd({ slug, title }: { slug: string; title: string }) {
   );
 }
 
+// ==================== SHARE BUTTONS ====================
+function ShareButtons({ title, slug }: { title: string; slug: string }) {
+  const url = `https://pottheblack.com/articles/${slug}`;
+  const encoded = encodeURIComponent(url);
+  const text = encodeURIComponent(`${title} — via Pot the Black`);
+
+  return (
+    <div className="flex items-center gap-3 my-12 pt-8 border-t border-slate-100 flex-wrap">
+      <span className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-slate-400 mr-1">
+        Share
+      </span>
+      <a
+        href={`https://www.facebook.com/sharer/sharer.php?u=${encoded}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-[0.65rem] font-black uppercase tracking-widest px-3 py-2 border border-slate-200 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors"
+      >
+        Facebook
+      </a>
+      <a
+        href={`https://twitter.com/intent/tweet?url=${encoded}&text=${text}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-[0.65rem] font-black uppercase tracking-widest px-3 py-2 border border-slate-200 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors"
+      >
+        X
+      </a>
+      <a
+        href={`https://wa.me/?text=${text}%20${encoded}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-[0.65rem] font-black uppercase tracking-widest px-3 py-2 border border-slate-200 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors"
+      >
+        WhatsApp
+      </a>
+    </div>
+  );
+}
+
 // ==================== PORTABLE TEXT COMPONENTS ====================
 const ptComponents = {
-  // --- THE LINK FIX: Marks define how styling is applied to text ---
   marks: {
     link: ({ children, value }: any) => {
       const rel = !value.href.startsWith("/") ? "noreferrer noopener" : undefined;
@@ -285,6 +323,7 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
       <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
+        {/* PTB-DEPLOY-v2 */}
         <ArticleJsonLd post={post} slug={slug} />
         <BreadcrumbJsonLd slug={slug} title={post.title} />
 
@@ -311,8 +350,8 @@ export default async function ArticlePage({ params }: Props) {
           )}
         </div>
 
-      <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-black italic uppercase mb-10 leading-[0.9] tracking-tighter w-full text-slate-900">
-           {post.title}
+        <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-black italic uppercase mb-10 leading-[0.9] tracking-tighter w-full text-slate-900">
+          {post.title}
         </h1>
 
         {post.mainImage && (
@@ -328,9 +367,11 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
 
-  <div className="w-full prose prose-slate prose-lg md:prose-xl max-w-none drop-cap">
+        <div className="w-full prose prose-slate prose-lg md:prose-xl max-w-none drop-cap">
           <PortableText value={post.body} components={ptComponents} />
         </div>
+
+        <ShareButtons title={post.title} slug={slug} />
 
         <section className="mt-40 pt-20 border-t border-slate-100">
           <h2 className="font-heading text-4xl font-black uppercase italic tracking-tighter mb-12 text-slate-900">
