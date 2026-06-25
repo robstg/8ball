@@ -311,8 +311,8 @@ export default async function ArticlePage({ params }: Props) {
           )}
         </div>
 
-        <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full text-slate-900">
-          {post.title}
+      <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-black italic uppercase mb-10 leading-[0.9] tracking-tighter w-full text-slate-900">
+           {post.title}
         </h1>
 
         {post.mainImage && (
