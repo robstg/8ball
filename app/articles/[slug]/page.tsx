@@ -162,9 +162,37 @@ function BreadcrumbJsonLd({ slug, title }: { slug: string; title: string }) {
   );
 }
 
+// ==================== AUTHOR BIO ====================
+function AuthorBio() {
+  return (
+    <div className="flex items-start gap-4 my-16 py-6 border-t border-b border-[var(--gold-muted)] max-w-2xl">
+      {/* Avatar */}
+      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[var(--gold)] flex items-center justify-center text-black font-black text-lg">
+        R
+      </div>
+      {/* Text */}
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-zinc-500">
+          About the Author
+        </span>
+        <p className="text-sm leading-relaxed text-zinc-300">
+          Rob is a 20+ year club-level pool and snooker player based in New
+          Zealand and the founder of{" "}
+          <a
+            href="https://pottheblack.com"
+            className="text-[var(--gold)] border-b border-[var(--gold-muted)] hover:border-[var(--gold)] transition-colors"
+          >
+            PottheBlack.com
+          </a>
+          .
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ==================== PORTABLE TEXT COMPONENTS ====================
 const ptComponents = {
-  // --- THE LINK FIX: Marks define how styling is applied to text ---
   marks: {
     link: ({ children, value }: any) => {
       const rel = !value.href.startsWith("/") ? "noreferrer noopener" : undefined;
@@ -172,14 +200,14 @@ const ptComponents = {
         <Link
           href={value.href}
           rel={rel}
-          className="text-emerald-600 font-bold underline decoration-emerald-200 underline-offset-4 hover:text-emerald-700 transition-colors"
+          className="text-[var(--gold)] border-b border-[var(--gold-muted)] hover:border-[var(--gold)] transition-colors"
         >
           {children}
         </Link>
       );
     },
     strong: ({ children }: any) => (
-      <strong className="font-black text-slate-900">{children}</strong>
+      <strong className="font-black text-white">{children}</strong>
     ),
   },
   types: {
@@ -188,16 +216,16 @@ const ptComponents = {
       const isHtml = value.language === "html" || value.code.trim().startsWith("<");
       if (isHtml) {
         return (
-          <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
+          <div className="my-12 w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-xl flex justify-center">
             <div
-              className="w-full max-w-full overflow-auto text-slate-900"
+              className="w-full max-w-full overflow-auto text-zinc-100"
               dangerouslySetInnerHTML={{ __html: value.code }}
             />
           </div>
         );
       }
       return (
-        <pre className="my-10 p-6 bg-slate-900 rounded-xl border border-slate-800 overflow-x-auto text-emerald-400 text-sm font-mono">
+        <pre className="my-10 p-6 bg-zinc-950 rounded-xl border border-zinc-800 overflow-x-auto text-[var(--gold)] text-sm font-mono">
           <code>{value.code}</code>
         </pre>
       );
@@ -205,8 +233,8 @@ const ptComponents = {
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null;
       return (
-        <div className="my-16 group">
-          <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 shadow-xl transition-transform duration-500 group-hover:scale-[1.01]">
+        <figure className="my-12 group">
+          <div className="relative overflow-hidden rounded-xl border border-zinc-800 shadow-2xl transition-transform duration-500 group-hover:scale-[1.01]">
             <Image
               src={urlFor(value).url()}
               alt={value.alt || "Pot The Black Masterclass"}
@@ -216,32 +244,32 @@ const ptComponents = {
             />
           </div>
           {value.caption && (
-            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 mt-6 italic text-center font-bold">
+            <figcaption className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mt-4 italic text-center">
               {value.caption}
-            </p>
+            </figcaption>
           )}
-        </div>
+        </figure>
       );
     },
   },
   block: {
     h2: ({ children }: any) => (
-      <h2 className="font-heading text-3xl md:text-5xl font-black italic uppercase mt-24 mb-10 text-slate-900 tracking-tighter leading-[0.9]">
+      <h2 className="text-2xl md:text-3xl font-black mt-16 mb-5 text-white tracking-tight leading-tight border-l-[3px] border-[var(--gold)] pl-4">
         {children}
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-lg md:text-xl font-bold uppercase mt-12 mb-6 text-emerald-600 tracking-[0.3em]">
+      <h3 className="text-base md:text-lg font-semibold italic mt-10 mb-4 text-zinc-400 tracking-wide">
         {children}
       </h3>
     ),
     normal: ({ children }: any) => (
-      <p className="mb-8 text-slate-700 leading-relaxed text-xl font-light font-body">
+      <p className="mb-7 text-zinc-300 leading-[1.85] text-lg font-light">
         {children}
       </p>
     ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-8 border-emerald-500 pl-8 my-16 italic text-3xl font-medium text-slate-800 leading-snug">
+      <blockquote className="border-t-2 border-b-2 border-[var(--gold)] my-12 py-5 italic text-2xl font-semibold text-zinc-200 leading-snug text-center">
         {children}
       </blockquote>
     ),
@@ -278,80 +306,104 @@ export default async function ArticlePage({ params }: Props) {
     );
 
     if (!data?.post) {
-      return <div className="pt-40 text-center">Article not found</div>;
+      return <div className="pt-40 text-center text-zinc-400">Article not found</div>;
     }
 
     const post = data.post;
 
     return (
-      <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
+      <article className="max-w-5xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 min-h-screen">
         <ArticleJsonLd post={post} slug={slug} />
         <BreadcrumbJsonLd slug={slug} title={post.title} />
 
-        <div className="flex items-center gap-4 mb-10 flex-wrap">
-          <span className="bg-emerald-500 text-[10px] font-black uppercase px-3 py-1 text-white tracking-widest">
+        {/* ── META LINE ───────────────────────────── */}
+        <div className="flex items-center gap-3 mb-8 flex-wrap">
+          {/* Gold dash + category pill */}
+          <span
+            className="inline-block w-5 h-0.5 bg-[var(--gold)] flex-shrink-0"
+            aria-hidden="true"
+          />
+          <span className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-zinc-500">
             Masterclass
           </span>
-          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+          <span className="text-zinc-700" aria-hidden="true">·</span>
+          <time
+            dateTime={post._createdAt}
+            className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-zinc-500"
+          >
             {new Date(post._createdAt).toLocaleDateString("en-NZ", {
               day: "numeric",
               month: "short",
               year: "numeric",
             })}
-          </span>
+          </time>
           {post._updatedAt && post._updatedAt !== post._createdAt && (
-            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-              • Updated{" "}
-              {new Date(post._updatedAt).toLocaleDateString("en-NZ", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </span>
+            <>
+              <span className="text-zinc-700" aria-hidden="true">·</span>
+              <span className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                Updated{" "}
+                {new Date(post._updatedAt).toLocaleDateString("en-NZ", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </>
           )}
         </div>
 
-        <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black italic uppercase mb-20 leading-[0.85] tracking-tighter w-full text-slate-900">
+        {/* ── TITLE ───────────────────────────────── */}
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black italic uppercase mb-14 leading-[0.88] tracking-tighter text-white">
           {post.title}
         </h1>
 
+        {/* ── HERO IMAGE ──────────────────────────── */}
         {post.mainImage && (
-          <div className="mb-24 w-full">
+          <div className="mb-16 w-full">
             <Image
               src={urlFor(post.mainImage).url()}
               alt={`${post.title} - Pool Snooker Technique`}
               width={2400}
               height={1350}
-              className="rounded-[3rem] border border-slate-100 shadow-2xl w-full h-auto"
+              className="rounded-xl border border-zinc-800 shadow-[0_8px_48px_rgba(0,0,0,0.6)] w-full h-auto"
               priority
             />
           </div>
         )}
 
-        <div className="max-w-6xl w-full prose prose-slate prose-lg md:prose-xl !max-w-none">
+        {/* ── BODY ────────────────────────────────── */}
+        {/*
+          First <p> gets the drop cap via CSS first-letter.
+          We wrap in article-body so globals.css picks it up.
+        */}
+        <div className="article-body max-w-2xl">
           <PortableText value={post.body} components={ptComponents} />
         </div>
 
-        <section className="mt-40 pt-20 border-t border-slate-100">
-          <h2 className="font-heading text-4xl font-black uppercase italic tracking-tighter mb-12 text-slate-900">
+        {/* ── AUTHOR BIO ──────────────────────────── */}
+        <AuthorBio />
+
+        {/* ── RELATED ARTICLES ────────────────────── */}
+        <section className="mt-24 pt-12 border-t border-zinc-800">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-500 pb-5 border-b border-zinc-800 mb-8">
             More from the Table
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {data.morePosts.map((p: any) => (
               <Link
                 key={p.slug}
                 href={`/articles/${p.slug}`}
                 className="group"
               >
-                <div className="relative aspect-video mb-4 overflow-hidden rounded-2xl border border-slate-100 shadow-md">
+                <div className="relative aspect-video mb-3 overflow-hidden rounded-lg border border-zinc-800">
                   <Image
                     src={urlFor(p.mainImage).url()}
                     alt={p.title}
                     fill
-                    className="object-cover transition-transform group-hover:scale-105"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
-                <h3 className="text-lg font-black uppercase italic leading-tight text-slate-900 group-hover:text-emerald-600 transition-colors">
+                <h3 className="text-sm font-black uppercase italic leading-tight text-zinc-200 group-hover:text-[var(--gold)] transition-colors">
                   {p.title}
                 </h3>
               </Link>
@@ -359,14 +411,15 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         </section>
 
-        <div className="mt-24 pt-10 border-t border-slate-100 flex justify-between items-center">
+        {/* ── FOOTER BAR ──────────────────────────── */}
+        <div className="mt-20 pt-8 border-t border-zinc-800 flex justify-between items-center">
           <Link
             href="/articles"
-            className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-emerald-600 transition-colors"
+            className="text-[0.65rem] font-black uppercase tracking-[0.4em] text-zinc-500 hover:text-[var(--gold)] transition-colors"
           >
             ← Back to Articles
           </Link>
-          <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
+          <span className="text-[0.65rem] text-zinc-700 font-bold uppercase tracking-widest">
             Pot The Black © 2026
           </span>
         </div>
@@ -375,7 +428,7 @@ export default async function ArticlePage({ params }: Props) {
   } catch (error) {
     console.error("Article page error:", error);
     return (
-      <div className="pt-40 text-center text-slate-600">
+      <div className="pt-40 text-center text-zinc-500">
         Something went wrong loading this article. Please try again later.
       </div>
     );
