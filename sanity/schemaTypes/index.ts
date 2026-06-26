@@ -19,10 +19,9 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     category, 
     rule, 
     guide,
+    author, // Cleanly registered inside the compilation pipeline
 
     // Objects
     seo
   ],
 }
-
-export const schemaTypes = [post, author]
