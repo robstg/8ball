@@ -16,14 +16,18 @@ export default defineType({
       title: 'Headline',
       type: 'string',
       group: 'content',
+      validation: (Rule) => Rule.required(),
     }),
+    
     defineField({
       name: 'slug',
       title: 'URL Slug',
       type: 'slug',
       options: {source: 'title'},
       group: 'content',
+      validation: (Rule) => Rule.required(),
     }),
+
     defineField({
       name: 'category',
       title: 'Category',
@@ -31,6 +35,16 @@ export default defineType({
       to: [{type: 'category'}],
       group: 'content',
     }),
+
+    defineField({
+      name: 'author',
+      title: 'Author',
+      type: 'reference',
+      to: [{type: 'author'}],
+      group: 'content',
+      validation: (Rule) => Rule.required(),
+    }),
+
     defineField({
       name: 'mainImage',
       title: 'Cover Photo',

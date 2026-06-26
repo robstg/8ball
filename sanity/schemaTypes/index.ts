@@ -6,6 +6,7 @@ import page from './page'
 import category from './category' 
 import rule from './rule'
 import guide from './guide' // Import for the Gear Lab
+import author from './author'
 
 // Objects (The new folder we created)
 import seo from './objects/seo'
@@ -23,3 +24,5 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     seo
   ],
 }
+
+export const schemaTypes = [post, author]
