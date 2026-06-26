@@ -22,7 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         mainImage,
         _createdAt,
         _updatedAt,
-        "authorName": author->name,
+        author->{
+          name,
+          bio
+        },
         "categories": categories[]->title
       }`,
       { slug }
@@ -49,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         "snooker tutorial",
         ...(post.categories || []),
       ],
-      authors: post.authorName ? [{ name: post.authorName }] : undefined,
+      authors: post.author?.name ? [{ name: post.author.name }] : undefined,
       openGraph: {
         title: post.title,
         description,
@@ -104,7 +107,9 @@ function ArticleJsonLd({ post, slug }: { post: any; slug: string }) {
     image: imageUrl ? [imageUrl] : [],
     author: {
       "@type": "Person",
-      name: post.authorName || "Pot The Black",
+      name: post.author?.name || "Pot The Black",
+      description: post.author?.bio || undefined,
+      url: post.author?.website || undefined,
     },
     publisher: {
       "@type": "Organization",
@@ -298,7 +303,13 @@ export default async function ArticlePage({ params }: Props) {
           mainImage,
           _createdAt,
           _updatedAt,
-          "authorName": author->name,
+          author->{
+            name,
+            bio,
+            image,
+            twitter,
+            website
+          },
           excerpt,
           "snippet": array::join(string::split(pt::text(body), "")[0...160], ""),
           body[]{
@@ -372,6 +383,53 @@ export default async function ArticlePage({ params }: Props) {
         </div>
 
         <ShareButtons title={post.title} slug={slug} />
+
+        {/* AUTHOR BIO BOX CONTAINER */}
+        {post.author && (
+          <div className="my-20 p-8 rounded-[2rem] border border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm">
+            {post.author.image && (
+              <div className="relative w-20 h-20 flex-shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-inner">
+                <Image
+                  src={urlFor(post.author.image).width(160).height(160).url()}
+                  alt={post.author.name}
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
+              </div>
+            )}
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900 mb-2 font-heading italic">
+                About {post.author.name}
+              </h3>
+              <p className="text-base text-slate-600 font-light leading-relaxed mb-4">
+                {post.author.bio}
+              </p>
+              <div className="flex justify-center sm:justify-start gap-4 text-[0.65rem] font-black uppercase tracking-widest text-slate-400">
+                {post.author.twitter && (
+                  <Link
+                    href={post.author.twitter}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="hover:text-emerald-600 transition-colors"
+                  >
+                    X / Twitter
+                  </Link>
+                )}
+                {post.author.website && (
+                  <Link
+                    href={post.author.website}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="hover:text-emerald-600 transition-colors"
+                  >
+                    Website
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <section className="mt-40 pt-20 border-t border-slate-100">
           <h2 className="font-heading text-4xl font-black uppercase italic tracking-tighter mb-12 text-slate-900">

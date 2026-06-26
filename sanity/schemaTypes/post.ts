@@ -43,6 +43,11 @@ export default defineType({
       to: [{type: 'author'}],
       group: 'content',
       validation: (Rule) => Rule.required(),
+      // Auto-selects your profile instantly when a new post is opened
+      initialValue: {
+        _type: 'reference',
+        _ref: '80a06080-e8a1-4083-8218-183ab4391d0d'
+      },
     }),
 
     defineField({
