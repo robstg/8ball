@@ -4,6 +4,7 @@ import { PortableText } from '@portabletext/react'
 import { BottomNav } from "@/components/bottom-nav"
 import ContactForm from "@/components/contact-form"
 import Image from 'next/image'
+import SubscribeForm from '@/components/SubscribeForm'
 
 // --- THE FIX: KILL THE CACHE ---
 export const revalidate = 0; 
@@ -106,7 +107,7 @@ export default async function AboutPage() {
           <ContactForm />
         </div>
       </article>
-      
+      <SubscribeForm source="article-footer" />
       <BottomNav />
     </main>
   )
