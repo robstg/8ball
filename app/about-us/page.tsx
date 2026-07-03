@@ -107,7 +107,7 @@ export default async function AboutPage() {
           <ContactForm />
         </div>
       </article>
-      <SubscribeForm source="article-footer" />
+      <center><SubscribeForm source="article-footer" /></center>
       <BottomNav />
     </main>
   )

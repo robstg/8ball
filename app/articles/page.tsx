@@ -92,6 +92,7 @@ export default async function ArticlesPage() {
           <Link href="/" className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-emerald-600 transition-colors">
             ← Return to Table
           </Link>
+                
         </div>
       </div>
     </main>
