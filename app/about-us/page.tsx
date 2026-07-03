@@ -101,13 +101,14 @@ export default async function AboutPage() {
               Get in Touch
             </h2>
             <p className="text-slate-400 uppercase tracking-[0.2em] text-[10px] mt-3 font-bold">
+              <center><SubscribeForm source="article-footer" /></center>
               Questions, Feedback, or Cue Reviews
             </p>
           </div>
           <ContactForm />
         </div>
       </article>
-      <center><SubscribeForm source="article-footer" /></center>
+      
       <BottomNav />
     </main>
   )
