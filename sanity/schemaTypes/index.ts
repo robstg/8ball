@@ -11,6 +11,7 @@ import subscriber from './documents/subscriber'
 
 // Objects (The new folder we created)
 import seo from './objects/seo'
+import htmlEmbed from './htmlEmbed'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -24,6 +25,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     subscriber,
 
     // Objects
-    seo
+    seo,
+    htmlEmbed
   ],
 }
