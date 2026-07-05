@@ -100,7 +100,7 @@ export default defineType({
         },
         {
           type: 'code',
-          title: 'HTML / Product Embed',
+          title: 'HTML / Product Embed (raw, no preview)',
           options: {
             language: 'html',
             languageAlternatives: [
@@ -108,6 +108,10 @@ export default defineType({
               {title: 'Javascript', value: 'javascript'}
             ]
           }
+        },
+        {
+          type: 'htmlEmbed',
+          title: 'HTML Embed (with live preview)',
         },
         // ADDED: Link to Rules directly in your text flow
         {
