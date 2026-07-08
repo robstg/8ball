@@ -119,8 +119,32 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
 
   if (!rule) return notFound()
 
+  // Build FAQPage JSON-LD from the rule.faq array (added in the Sanity schema:
+  // an array field named "faq" with objects of { question, answer }).
+  // Rendered server-side, straight into <head>-equivalent output — never through
+  // PortableText, so it can't get escaped or dumped as visible text.
+  const faqSchema = rule.faq?.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": rule.faq.map((item: { question: string; answer: string }) => ({
+      "@type": "Question",
+      "name": item.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.answer,
+      },
+    })),
+  } : null
+
   return (
     <main className="min-h-screen bg-white pt-40 pb-20 px-6">
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )}
+
       <article className="max-w-3xl mx-auto">
         <Link 
           href={`/rules/${sport}`} 
@@ -182,6 +206,22 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
           {/* Now containing perfectly resolved deep asset fields */}
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
+
+        {rule.faq?.length > 0 && (
+          <section className="mt-20 border-t border-slate-100 pt-12">
+            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900 mb-8">
+              FAQ<span className="text-emerald-500">.</span>
+            </h2>
+            <div className="space-y-8">
+              {rule.faq.map((item: { question: string; answer: string }, i: number) => (
+                <div key={i}>
+                  <h3 className="text-lg font-black text-slate-900 mb-2">{item.question}</h3>
+                  <p className="text-slate-600 text-base leading-relaxed font-medium">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </article>
     </main>
   )
