@@ -5,6 +5,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import imageUrlBuilder from "@sanity/image-url"
 import { Metadata } from "next"
+import { createElement } from "react"
 
 // THE FIX: Dynamic Metadata generation for Rule Detail Pages
 export async function generateMetadata({ params }: { params: Promise<{ sport: string, slug: string }> }): Promise<Metadata> {
@@ -78,15 +79,15 @@ const portableTextComponents: PortableTextComponents = {
     link: ({ children, value }) => {
       const href = value?.href || '#'
       const isExternal = href.startsWith('http')
-      return (
-        
-          href={href}
-          target={isExternal ? '_blank' : undefined}
-          rel={isExternal ? 'noopener noreferrer' : undefined}
-          className="text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700 hover:decoration-emerald-500 transition-colors"
-        >
-          {children}
-        </a>
+      return createElement(
+        'a',
+        {
+          href: href,
+          target: isExternal ? '_blank' : undefined,
+          rel: isExternal ? 'noopener noreferrer' : undefined,
+          className: "text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700 hover:decoration-emerald-500 transition-colors"
+        },
+        children
       )
     },
   },
@@ -178,7 +179,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         )}
 
         <div className="prose-custom">
-          {/* Now containing 1 perfectly resolved deep asset fields */}
+          {/* Now containing perfectly resolved deep asset fields */}
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
       </article>
