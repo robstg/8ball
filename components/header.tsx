@@ -4,32 +4,44 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Menu, X } from 'lucide-react'
 
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const linkStyle = (path: string) => 
     pathname === path 
       ? "text-white border-b-2 border-green-400 pb-0.5 whitespace-nowrap" 
       : "text-white/80 hover:text-green-400 transition-colors pb-0.5 whitespace-nowrap"
 
+  const mobileLinkStyle = (path: string) =>
+    pathname === path
+      ? "text-white border-l-2 border-green-400 pl-4 py-3 block"
+      : "text-white/80 hover:text-green-400 transition-colors pl-4 py-3 block border-l-2 border-transparent"
+
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setMenuOpen(false)
     }
   }
 
+  const navLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/pool', label: 'Pool' },
+    { href: '/snooker', label: 'Snooker' },
+    { href: '/9-ball', label: '9-Ball' },
+    { href: '/rules', label: 'Rules' },
+    { href: '/news', label: 'News' },
+    { href: '/about-us', label: 'About' },
+  ]
+
   return (
     <header className="w-full z-50 font-sans">
-      {/* 
-        THE FIX: Changed pb-12 to pb-16 to drop the green wall further down.
-        Added a matching solid green background color to the main div fallback 
-        so the radial gradient seamlessly blocks out the white stripe background.
-      */}
       <div 
         className="relative pt-8 pb-16 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f] bg-[#004d33]" 
         style={{
@@ -43,6 +55,15 @@ export function Header() {
 
         <div className="max-w-7xl mx-auto flex flex-col items-center relative z-10">
           
+          {/* Mobile menu toggle — top right */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden absolute top-0 right-4 text-white p-2"
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
           {/* Centered Logo / Site Name */}
           <div className="flex flex-col items-center mb-6 md:mb-8">
             <Link href="/" className="relative w-24 h-24 md:w-40 md:h-40 transition-transform hover:scale-105"> 
@@ -59,17 +80,32 @@ export function Header() {
             </span>
           </div>
 
-          {/* Navigation - Grid Layout */}
-          <nav className="w-full max-w-2xl">
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-4 gap-x-2 md:flex md:items-center md:justify-center md:gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
-              <Link href="/" className={linkStyle('/')}>Home</Link>
-              <Link href="/pool" className={linkStyle('/pool')}>Pool</Link>
-              <Link href="/snooker" className={linkStyle('/snooker')}>Snooker</Link>
-              <Link href="/9-ball" className={linkStyle('/9-ball')}>9-Ball</Link>
-              <Link href="/news" className={linkStyle('/news')}>News</Link>
-              <Link href="/about-us" className={linkStyle('/about-us')}>About</Link>
+          {/* Desktop Navigation — unchanged, hidden on mobile */}
+          <nav className="hidden md:block w-full max-w-2xl">
+            <div className="flex items-center justify-center gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href} className={linkStyle(link.href)}>
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </nav>
+
+          {/* Mobile Navigation — dropdown panel, only rendered on small screens */}
+          {menuOpen && (
+            <nav className="md:hidden w-full max-w-sm mt-6 bg-black/20 rounded-2xl backdrop-blur-sm border border-white/10 overflow-hidden">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={mobileLinkStyle(link.href)}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">{link.label}</span>
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
 
         {/* The "Floating" Search Bar */}
@@ -94,11 +130,6 @@ export function Header() {
         </form>
       </div>
       
-      {/* 
-        Surgical Spacer Fix: Reduced h-10 to h-4. 
-        Since the green bar is deeper now, we drop this down to keep the 
-        Masthead title tucked right underneath the search shadow.
-      */}
       <div className="h-4 w-full" />
     </header>
   )

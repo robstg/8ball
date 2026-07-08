@@ -105,7 +105,7 @@ export function RulesFeature() {
               Settling disputes from Auckland pubs to international arenas. Select a sport to view core technicalities.
             </p>
 
-            {/* Sport Selector Tabs */}
+ {/* Sport Selector Tabs */}
             <div className="mt-10 flex bg-slate-100 p-1 rounded-2xl w-fit">
               {Object.keys(RULES_DATABASE).map((sport) => (
                 <button
@@ -120,6 +120,14 @@ export function RulesFeature() {
                   {sport}
                 </button>
               ))}
+            </div>
+
+            {/* Always-rendered links for crawlability — the tabs above are JS-only,
+                so search engines never see /rules/9-ball or /rules/snooker without this */}
+            <div className="mt-4 flex gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <Link href="/rules/8-ball" className="hover:text-emerald-600 transition-colors">8-Ball Rules</Link>
+              <Link href="/rules/9-ball" className="hover:text-emerald-600 transition-colors">9-Ball Rules</Link>
+              <Link href="/rules/snooker" className="hover:text-emerald-600 transition-colors">Snooker Rules</Link>
             </div>
 
             <Link href="/rules" className="mt-10 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-900 group">
