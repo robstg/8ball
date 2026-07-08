@@ -54,7 +54,10 @@ const portableTextComponents: PortableTextComponents = {
       )
     },
     image: ({ value }: any) => {
-      if (!value?.asset?._ref) return null
+      // FIX: query dereferences asset->, so the shape is the resolved asset
+      // (has _id, url, etc.) not the raw reference (_ref). Check for both
+      // so images actually render instead of silently returning null.
+      if (!value?.asset?._id && !value?.asset?._ref) return null
       return (
         <div className="my-12 rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
           <img 
@@ -123,40 +126,40 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         </header>
 
         {(rule.quickVerdict || rule.keyPoints?.length > 0) && (
-  <div className="bg-emerald-600 text-white p-8 md:p-10 rounded-[2.5rem] mb-16 shadow-2xl shadow-emerald-900/20 relative overflow-hidden">
-    <div className="absolute top-0 right-0 p-8 opacity-10">
-      <AlertCircle size={120} strokeWidth={1} />
-    </div>
+          <div className="bg-emerald-600 text-white p-8 md:p-10 rounded-[2.5rem] mb-16 shadow-2xl shadow-emerald-900/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <AlertCircle size={120} strokeWidth={1} />
+            </div>
 
-    <div className="relative z-10">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="bg-white/20 p-3 rounded-xl shrink-0 backdrop-blur-md">
-          <AlertCircle size={20} />
-        </div>
-        <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
-          Quick Verdict
-        </span>
-      </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="bg-white/20 p-3 rounded-xl shrink-0 backdrop-blur-md">
+                  <AlertCircle size={20} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                  Quick Verdict
+                </span>
+              </div>
 
-      {rule.quickVerdict && (
-        <p className="text-xl md:text-2xl leading-snug font-black tracking-tight mb-6">
-          {rule.quickVerdict}
-        </p>
-      )}
+              {rule.quickVerdict && (
+                <p className="text-xl md:text-2xl leading-snug font-black tracking-tight mb-6">
+                  {rule.quickVerdict}
+                </p>
+              )}
 
-      {rule.keyPoints?.length > 0 && (
-        <ul className="space-y-3 border-t border-white/20 pt-6">
-          {rule.keyPoints.map((point: string, i: number) => (
-            <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed font-medium text-emerald-50">
-              <span className="w-1.5 h-1.5 rounded-full bg-white mt-2 shrink-0" />
-              {point}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  </div>
-)}
+              {rule.keyPoints?.length > 0 && (
+                <ul className="space-y-3 border-t border-white/20 pt-6">
+                  {rule.keyPoints.map((point: string, i: number) => (
+                    <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed font-medium text-emerald-50">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white mt-2 shrink-0" />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="prose-custom">
           {/* Now containing perfectly resolved deep asset fields */}
