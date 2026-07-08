@@ -74,6 +74,22 @@ const portableTextComponents: PortableTextComponents = {
       )
     }
   },
+  marks: {
+    link: ({ children, value }) => {
+      const href = value?.href || '#'
+      const isExternal = href.startsWith('http')
+      return (
+        
+          href={href}
+          target={isExternal ? '_blank' : undefined}
+          rel={isExternal ? 'noopener noreferrer' : undefined}
+          className="text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700 hover:decoration-emerald-500 transition-colors"
+        >
+          {children}
+        </a>
+      )
+    },
+  },
   block: {
     h2: ({ children }) => <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900 mt-16 mb-6">{children}</h2>,
     h3: ({ children }) => <h3 className="text-xl font-black uppercase tracking-tight text-slate-800 mt-10 mb-4">{children}</h3>,
