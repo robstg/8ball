@@ -6,7 +6,6 @@ export default defineType({
   title: 'Rules Archive',
   type: 'document',
   icon: Scale,
-  // 1. Grouping for that elite Studio layout
   groups: [
     { name: 'content', title: 'Rule Details', default: true },
     { name: 'seo', title: 'SEO & Metadata' },
@@ -51,7 +50,18 @@ export default defineType({
       name: 'quickVerdict',
       title: 'The "Bar Bet" Verdict',
       type: 'text',
-      description: 'A 1-2 sentence summary for instant answers under pressure.',
+      rows: 2,
+      description: 'ONE short punchy sentence, max ~150 characters. This also becomes the Google meta description, so keep it tight — the full breakdown goes in Key Points below, not here.',
+      validation: (Rule) => Rule.max(155).warning('Keep this under 155 characters — it doubles as the SEO meta description and gets cut off past that.'),
+      group: 'content',
+    }),
+    defineField({
+      name: 'keyPoints',
+      title: 'Key Points',
+      type: 'array',
+      description: 'Short, scannable bullets for the Quick Verdict box. One rule per bullet — keep each under a sentence or two.',
+      of: [{ type: 'string' }],
+      validation: (Rule) => Rule.max(6).warning('More than 6 points gets cluttered — consider trimming or moving detail into the full write-up below.'),
       group: 'content',
     }),
     defineField({
@@ -66,7 +76,6 @@ export default defineType({
           options: { hotspot: true },
           fields: [{ name: 'alt', type: 'string', title: 'Alt Text' }]
         },
-        // --- ADDED: HTML / Product Embed Block ---
         {
           type: 'code',
           title: 'HTML / Product Embed',
@@ -85,7 +94,7 @@ export default defineType({
     defineField({
       name: 'seo',
       title: 'Search Engine Optimization',
-      type: 'seo', // Using the object we registered in index.ts
+      type: 'seo',
       group: 'seo',
     }),
   ],
