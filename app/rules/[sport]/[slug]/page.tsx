@@ -137,7 +137,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
   } : null
 
   return (
-    <main className="min-h-screen bg-white pt-40 pb-20 px-6">
+    <main className="min-h-screen bg-white pt-40 pb-20">
       {faqSchema && (
         <script
           type="application/ld+json"
@@ -145,7 +145,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         />
       )}
 
-      <article className="max-w-3xl mx-auto">
+      <article className="max-w-6xl mx-auto px-6 md:px-12 lg:px-20">
         <Link 
           href={`/rules/${sport}`} 
           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-emerald-600 mb-12 transition-all group"
