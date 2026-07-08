@@ -178,7 +178,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         )}
 
         <div className="prose-custom">
-          {/* Now containing perfectly resolved deep asset fields */}
+          {/* Now containing 1 perfectly resolved deep asset fields */}
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
       </article>
