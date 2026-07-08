@@ -122,22 +122,41 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
           </h1>
         </header>
 
-        <div className="bg-emerald-600 text-white p-10 rounded-[2.5rem] mb-16 shadow-2xl shadow-emerald-900/20 flex flex-col md:flex-row gap-8 items-start relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-500">
-             <AlertCircle size={120} strokeWidth={1} />
-          </div>
-          
-          <div className="bg-white/20 p-4 rounded-2xl shrink-0 backdrop-blur-md">
-            <AlertCircle size={28} />
-          </div>
-          
-          <div className="relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-2 block">Quick Verdict</span>
-            <p className="text-xl md:text-2xl leading-tight font-black italic tracking-tight">
-              "{rule.quickVerdict}"
-            </p>
-          </div>
+        {(rule.quickVerdict || rule.keyPoints?.length > 0) && (
+  <div className="bg-emerald-600 text-white p-8 md:p-10 rounded-[2.5rem] mb-16 shadow-2xl shadow-emerald-900/20 relative overflow-hidden">
+    <div className="absolute top-0 right-0 p-8 opacity-10">
+      <AlertCircle size={120} strokeWidth={1} />
+    </div>
+
+    <div className="relative z-10">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="bg-white/20 p-3 rounded-xl shrink-0 backdrop-blur-md">
+          <AlertCircle size={20} />
         </div>
+        <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+          Quick Verdict
+        </span>
+      </div>
+
+      {rule.quickVerdict && (
+        <p className="text-xl md:text-2xl leading-snug font-black tracking-tight mb-6">
+          {rule.quickVerdict}
+        </p>
+      )}
+
+      {rule.keyPoints?.length > 0 && (
+        <ul className="space-y-3 border-t border-white/20 pt-6">
+          {rule.keyPoints.map((point: string, i: number) => (
+            <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed font-medium text-emerald-50">
+              <span className="w-1.5 h-1.5 rounded-full bg-white mt-2 shrink-0" />
+              {point}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+)}
 
         <div className="prose-custom">
           {/* Now containing perfectly resolved deep asset fields */}
