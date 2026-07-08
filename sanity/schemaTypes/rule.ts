@@ -43,6 +43,7 @@ export default defineType({
   name: 'faq',
   title: 'FAQ',
   type: 'array',
+  group: 'content',
   of: [
     {
       type: 'object',
