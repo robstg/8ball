@@ -245,6 +245,22 @@ const ptComponents = {
         </pre>
       );
     },
+    // NEW: renderer for the custom `htmlEmbed` schema type.
+    // This was missing entirely, which is why embeds showed up fine in the
+    // Studio preview component but never rendered on the live page —
+    // PortableText silently skips any block type it has no component for.
+    htmlEmbed: ({ value }: any) => {
+      const markup = value?.html || value?.code;
+      if (!markup) return null;
+      return (
+        <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
+          <div
+            className="w-full max-w-full overflow-auto text-slate-900"
+            dangerouslySetInnerHTML={{ __html: markup }}
+          />
+        </div>
+      );
+    },
     image: ({ value }: any) => {
       if (!value?.asset?._ref) return null;
       return (
@@ -314,7 +330,8 @@ export default async function ArticlePage({ params }: Props) {
           "snippet": array::join(string::split(pt::text(body), "")[0...160], ""),
           body[]{
             ...,
-            _type == "code" => { code, language }
+            _type == "code" => { code, language },
+            _type == "htmlEmbed" => { html, code, caption }
           }
         },
         "morePosts": *[_type == "post" && slug.current != $slug] | order(_createdAt desc)[0...3]{
