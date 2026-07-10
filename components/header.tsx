@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Menu, X } from 'lucide-react'
 
 export function Header() {
@@ -11,11 +11,18 @@ export function Header() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 40)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const linkStyle = (path: string) => 
     pathname === path 
-      ? "text-white border-b-2 border-green-400 pb-0.5 whitespace-nowrap" 
-      : "text-white/80 hover:text-green-400 transition-colors pb-0.5 whitespace-nowrap"
+      ? "text-white border-b-2 border-green-400 pb-1 px-1 whitespace-nowrap" 
+      : "text-white/80 hover:text-green-400 transition-colors pb-1 px-1 whitespace-nowrap border-b-2 border-transparent hover:border-green-400/40"
 
   const mobileLinkStyle = (path: string) =>
     pathname === path
@@ -41,9 +48,11 @@ export function Header() {
   ]
 
   return (
-    <header className="w-full z-50 font-sans">
+    <header className="w-full z-50 font-sans sticky top-0">
       <div 
-        className="relative pt-8 pb-16 px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f] bg-[#004d33]" 
+        className={`relative px-4 md:px-6 shadow-inner border-b-4 border-[#3d2b1f] bg-[#004d33] transition-all duration-300 ${
+          scrolled ? "pt-4 pb-10" : "pt-8 pb-16"
+        }`}
         style={{
           background: "radial-gradient(circle at center, #007a53 0%, #004d33 70%, #002e1f 100%)"
         }}
@@ -64,9 +73,14 @@ export function Header() {
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          {/* Centered Logo / Site Name */}
-          <div className="flex flex-col items-center mb-6 md:mb-8">
-            <Link href="/" className="relative w-24 h-24 md:w-40 md:h-40 transition-transform hover:scale-105"> 
+          {/* Centered Logo / Site Name — shrinks slightly on scroll */}
+          <div className={`flex flex-col items-center transition-all duration-300 ${scrolled ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}`}>
+            <Link 
+              href="/" 
+              className={`relative transition-all duration-300 hover:scale-105 ${
+                scrolled ? "w-14 h-14 md:w-20 md:h-20" : "w-24 h-24 md:w-40 md:h-40"
+              }`}
+            > 
               <Image 
                 src="/headerlogo.png" 
                 alt="Pot The Black Logo"
@@ -75,14 +89,16 @@ export function Header() {
                 priority
               />
             </Link>
-            <span className="text-white font-black italic uppercase tracking-tighter text-xl md:text-2xl mt-2">
+            <span className={`text-white font-black italic uppercase tracking-tighter mt-2 transition-all duration-300 ${
+              scrolled ? "text-base md:text-lg" : "text-xl md:text-2xl"
+            }`}>
               Pot The Black
             </span>
           </div>
 
-          {/* Desktop Navigation — unchanged, hidden on mobile */}
-          <nav className="hidden md:block w-full max-w-2xl">
-            <div className="flex items-center justify-center gap-12 text-[11px] font-black uppercase tracking-[0.2em] text-center">
+          {/* Desktop Navigation — font size bumped from 11px to 13px, more breathing room */}
+          <nav className="hidden md:block w-full max-w-3xl">
+            <div className="flex items-center justify-center gap-8 lg:gap-10 text-[13px] font-black uppercase tracking-[0.15em] text-center">
               {navLinks.map((link) => (
                 <Link key={link.href} href={link.href} className={linkStyle(link.href)}>
                   {link.label}
@@ -101,7 +117,7 @@ export function Header() {
                   className={mobileLinkStyle(link.href)}
                   onClick={() => setMenuOpen(false)}
                 >
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">{link.label}</span>
+                  <span className="text-[13px] font-black uppercase tracking-[0.15em]">{link.label}</span>
                 </Link>
               ))}
             </nav>

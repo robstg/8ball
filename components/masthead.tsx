@@ -9,6 +9,14 @@ export function Masthead({ latestPost }: { latestPost: any }) {
   // If no post is found, we don't show a Masthead. 
   if (!latestPost) return null;
 
+  const publishedDate = latestPost._createdAt
+    ? new Date(latestPost._createdAt).toLocaleDateString("en-NZ", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
   return (
     /* THE FIX: Pulled mobile padding back to pt-16 and desktop to md:pt-20 to close the dead space */
 
@@ -32,12 +40,19 @@ export function Masthead({ latestPost }: { latestPost: any }) {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Latest Masterclass</span>
+              {publishedDate && (
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                  · {publishedDate}
+                </span>
+              )}
             </div>
 
-            {/* Main Headline */}
-            <h1 className="font-[family-name:var(--font-heading)] text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.85] uppercase italic text-slate-900">
-              {latestPost.title}
-            </h1>
+            {/* Main Headline — now a clickable link straight to the article */}
+            <Link href={`/articles/${latestPost.slug}`} className="group/headline">
+              <h1 className="font-[family-name:var(--font-heading)] text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.85] uppercase italic text-slate-900 transition-colors duration-300 group-hover/headline:text-emerald-600">
+                {latestPost.title}
+              </h1>
+            </Link>
             
             {/* Excerpt Text */}
             <p className="mt-8 text-lg text-slate-500 max-w-md leading-relaxed">
@@ -58,33 +73,45 @@ export function Masthead({ latestPost }: { latestPost: any }) {
             </div>
           </motion.div>
 
-          {/* 2. Right Column (Cinematic 16:9 Cover Photo) */}
-          <motion.div 
-            className="w-full relative aspect-video rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-white group"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+          {/* 2. Right Column (Cinematic 16:9 Cover Photo) — also clickable now */}
+          <Link
+            href={`/articles/${latestPost.slug}`}
+            className="w-full block relative aspect-video rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-white group"
           >
-            {latestPost.mainImage ? (
-              <Image 
-                src={urlFor(latestPost.mainImage).url()} 
-                alt={latestPost.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-700"
-                priority 
-                sizes="(max-w-768px) 100vw, 50vw" 
-              />
-            ) : (
-              <div className="w-full h-full bg-[#004d33] flex flex-col items-center justify-center p-12 text-center">
-                 <span className="text-white font-black uppercase tracking-widest text-xs italic">
-                   Pot The Black Archive
-                 </span>
+            <motion.div
+              className="w-full h-full relative"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              {latestPost.mainImage ? (
+                <Image 
+                  src={urlFor(latestPost.mainImage).url()} 
+                  alt={latestPost.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-700"
+                  priority 
+                  sizes="(max-w-768px) 100vw, 50vw" 
+                />
+              ) : (
+                <div className="w-full h-full bg-[#004d33] flex flex-col items-center justify-center p-12 text-center">
+                   <span className="text-white font-black uppercase tracking-widest text-xs italic">
+                     Pot The Black Archive
+                   </span>
+                </div>
+              )}
+              
+              {/* Subtle Lighting Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10 pointer-events-none" />
+
+              {/* Hover affordance so it reads as clickable, not just decorative */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
+                  Read the Masterclass →
+                </span>
               </div>
-            )}
-            
-            {/* Subtle Lighting Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10 pointer-events-none" />
-          </motion.div>
+            </motion.div>
+          </Link>
           
         </div>
       </div>
