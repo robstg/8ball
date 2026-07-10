@@ -5,6 +5,7 @@ import { RulesFeature } from "@/components/rules-feature"
 import { GearShowcase } from "@/components/gear-showcase"
 import { BottomNav } from "@/components/bottom-nav"
 import Link from "next/link" 
+import { Footer } from "@/components/footer"
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -69,6 +70,7 @@ export default async function Home() {
       
       <RulesFeature />
       <GearShowcase items={gearGuides} />
+      <Footer />
       <BottomNav />
     </main>
   )
