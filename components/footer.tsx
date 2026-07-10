@@ -118,20 +118,18 @@ export function Footer() {
             <p className="mt-1">RDS Software Limited · Auckland, New Zealand</p>
           </div>
 
-          {socialLinks.length > 0 && (
-            <div className="flex items-center gap-4">
-              {socialLinks.map((social) => (
-                
-                  key={social.id}
-                  href={social.href}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  aria-label={social.label}
-                  className="text-white/50 hover:text-emerald-400 transition-colors"
-                >
-                  <social.icon size={18} />
-                </a>
-              ))}
+          {socialLinks.map((social) => (<a
+  
+    key={social.id}
+    href={social.href}
+    target="_blank"
+    rel="noreferrer noopener"
+    aria-label={social.label}
+    className="text-white/50 hover:text-emerald-400 transition-colors"
+  >
+    <social.icon size={18} />
+  </a>
+))}
             </div>
           )}
         </div>
