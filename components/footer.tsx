@@ -1,15 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Youtube, Facebook } from "lucide-react"
 import SubscribeForm from "@/components/SubscribeForm"
-
-// Leave this empty (or remove entries) until a profile is actually live —
-// an icon linking nowhere or to a dead page hurts more than having none.
-const socialLinks: { id: string; href: string; icon: typeof Youtube; label: string }[] = [
-  // { id: "youtube", href: "https://youtube.com/@pottheblack", icon: Youtube, label: "YouTube" },
-  // { id: "facebook", href: "https://facebook.com/pottheblack", icon: Facebook, label: "Facebook" },
-]
 
 const footerColumns = [
   {
@@ -47,10 +39,6 @@ const footerColumns = [
 
 export function Footer() {
   return (
-    // pb-32 on mobile clears the fixed BottomNav dock (~90px tall) so the
-    // last footer row never sits underneath it. md:pb-0 since the dock
-    // is typically hidden or non-overlapping on larger viewports — adjust
-    // if BottomNav is shown at all breakpoints.
     <footer className="relative bg-[#002e1f] text-white pb-32 md:pb-16">
       <div
         className="absolute inset-0 opacity-5 pointer-events-none"
@@ -114,24 +102,9 @@ export function Footer() {
       <div className="relative border-t border-white/10">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left text-[11px] text-white/40 font-medium">
-            <p>© {new Date().getFullYear()} Pot The Black. All rights reserved.</p>
+            <p>© 2026 Pot The Black. All rights reserved.</p>
             <p className="mt-1">RDS Software Limited · Auckland, New Zealand</p>
           </div>
-
-          {socialLinks.map((social) => (<a
-  
-    key={social.id}
-    href={social.href}
-    target="_blank"
-    rel="noreferrer noopener"
-    aria-label={social.label}
-    className="text-white/50 hover:text-emerald-400 transition-colors"
-  >
-    <social.icon size={18} />
-  </a>
-))}
-            </div>
-          )}
         </div>
       </div>
     </footer>
