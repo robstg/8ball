@@ -28,13 +28,7 @@ const footerColumns = [
       { label: "Contact", href: "/about-us#contact" },
     ],
   },
-  {
-    heading: "Legal",
-    links: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Use", href: "/terms" },
-    ],
-  },
+  
 ]
 
 export function Footer() {
