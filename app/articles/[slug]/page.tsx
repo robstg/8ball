@@ -287,7 +287,7 @@ function FaqSection({ faq }: { faq: { question: string; answer: any }[] }) {
   if (!faq || faq.length === 0) return null;
 
   return (
-    <section className="mt-20 pt-12 border-t border-slate-100">
+    <section className="mt-4">
       <h2 className="font-heading text-3xl md:text-5xl font-black italic uppercase mb-10 text-slate-900 tracking-tighter leading-[0.9]">
         FAQ<span className="text-emerald-500">.</span>
       </h2>
@@ -302,7 +302,6 @@ function FaqSection({ faq }: { faq: { question: string; answer: any }[] }) {
     </section>
   );
 }
-
 // ==================== PORTABLE TEXT COMPONENTS ====================
 const ptComponents = {
   marks: {
