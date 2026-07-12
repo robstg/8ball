@@ -1,6 +1,6 @@
 import { client } from "@/sanity/lib/client";
 import { urlFor } from "@/sanity/lib/image";
-import { PortableText } from "@portabletext/react";
+import { PortableText, PortableTextComponents } from "@portabletext/react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -167,11 +167,27 @@ function BreadcrumbJsonLd({ slug, title }: { slug: string; title: string }) {
   );
 }
 
-// NEW: FAQPage schema, built from the post's `faq` array — same shape as
-// the faqItem object used in rule.ts (question/answer pairs). Renders
-// nothing if the post has no faq field yet, so this is safe to ship
-// globally across every article even before content is backfilled.
-function FaqJsonLd({ faq }: { faq: { question: string; answer: string }[] }) {
+// Flattens a Portable Text block array down to plain text. Google's
+// FAQPage rich-result spec wants acceptedAnswer.text as a plain string —
+// it does NOT parse Portable Text — so this strips out the block/mark
+// structure and just joins the words. The rendered page still shows the
+// rich version (links, bold, etc) via PortableText directly in
+// FaqSection; this is only used to build the JSON-LD below.
+function portableTextToPlainText(blocks: any[] = []): string {
+  return blocks
+    .map((block) => {
+      if (block._type !== "block" || !block.children) return "";
+      return block.children.map((child: any) => child.text).join("");
+    })
+    .join(" ")
+    .trim();
+}
+
+// FAQPage schema, built from the post's `faq` array. `answer` is Portable
+// Text (rich links via Studio), so it gets flattened to plain text here
+// specifically for the schema — the visible page render uses the rich
+// version separately via FaqSection below.
+function FaqJsonLd({ faq }: { faq: { question: string; answer: any }[] }) {
   if (!faq || faq.length === 0) return null;
 
   const schema = {
@@ -182,7 +198,7 @@ function FaqJsonLd({ faq }: { faq: { question: string; answer: string }[] }) {
       name: item.question,
       acceptedAnswer: {
         "@type": "Answer",
-        text: item.answer,
+        text: portableTextToPlainText(item.answer),
       },
     })),
   };
@@ -234,9 +250,39 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
   );
 }
 
-// NEW: Visible FAQ section, styled to match the rest of the article
-// template (same h2 treatment as the rest of the body, same card
-// language as the author bio box below it).
+// Portable Text renderer config specifically for FAQ answers — this was
+// the piece missing from the previous file, causing a ReferenceError.
+// Kept deliberately small: just link marks and a plain paragraph block,
+// matching what the schema allows editors to add in Studio.
+const faqAnswerComponents: PortableTextComponents = {
+  marks: {
+    link: ({ children, value }: any) => {
+      const href = value?.href || "#";
+      const isExternal = href.startsWith("http");
+      return (
+        <a
+          href={href}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noreferrer noopener" : undefined}
+          className="text-emerald-600 font-bold underline decoration-emerald-200 underline-offset-4 hover:text-emerald-700 transition-colors"
+        >
+          {children}
+        </a>
+      );
+    },
+  },
+  block: {
+    normal: ({ children }: any) => (
+      <p className="text-slate-600 text-base leading-relaxed font-medium mb-2 last:mb-0">
+        {children}
+      </p>
+    ),
+  },
+};
+
+// Visible FAQ section, styled to match the rest of the article template.
+// `answer` is Portable Text, so it renders via PortableText with the
+// components config above.
 function FaqSection({ faq }: { faq: { question: string; answer: any }[] }) {
   if (!faq || faq.length === 0) return null;
 
@@ -296,10 +342,7 @@ const ptComponents = {
         </pre>
       );
     },
-    // NEW: renderer for the custom `htmlEmbed` schema type.
-    // This was missing entirely, which is why embeds showed up fine in the
-    // Studio preview component but never rendered on the live page —
-    // PortableText silently skips any block type it has no component for.
+    // renderer for the custom `htmlEmbed` schema type.
     htmlEmbed: ({ value }: any) => {
       const markup = value?.html || value?.code;
       if (!markup) return null;
@@ -403,7 +446,7 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
       <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
-        {/* PTB-DEPLOY-v2 */}
+        {/* PTB-DEPLOY-v3 */}
         <ArticleJsonLd post={post} slug={slug} />
         <BreadcrumbJsonLd slug={slug} title={post.title} />
         <FaqJsonLd faq={post.faq} />
