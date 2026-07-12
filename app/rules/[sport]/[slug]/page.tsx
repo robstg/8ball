@@ -1,4 +1,3 @@
-```tsx
 import { client } from "@/sanity/lib/client"
 import { PortableText, PortableTextComponents } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
