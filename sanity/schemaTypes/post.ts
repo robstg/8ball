@@ -57,6 +57,25 @@ export default defineType({
       options: {hotspot: true},
       group: 'content',
     }),
+    defineField({
+  name: 'faq',
+  title: 'FAQ',
+  type: 'array',
+  group: 'content',
+  of: [
+    {
+      type: 'object',
+      name: 'faqItem',
+      fields: [
+        { name: 'question', type: 'string', title: 'Question' },
+        { name: 'answer', type: 'text', title: 'Answer' },
+      ],
+      preview: {
+        select: { title: 'question' },
+      },
+    },
+  ],
+}),
     
     // The "Page Builder" style Content Array
     defineField({
