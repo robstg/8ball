@@ -167,6 +167,34 @@ function BreadcrumbJsonLd({ slug, title }: { slug: string; title: string }) {
   );
 }
 
+// NEW: FAQPage schema, built from the post's `faq` array — same shape as
+// the faqItem object used in rule.ts (question/answer pairs). Renders
+// nothing if the post has no faq field yet, so this is safe to ship
+// globally across every article even before content is backfilled.
+function FaqJsonLd({ faq }: { faq: { question: string; answer: string }[] }) {
+  if (!faq || faq.length === 0) return null;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 // ==================== SHARE BUTTONS ====================
 function ShareButtons({ title, slug }: { title: string; slug: string }) {
   const url = `https://pottheblack.com/articles/${slug}`;
@@ -203,6 +231,29 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
         WhatsApp
       </a>
     </div>
+  );
+}
+
+// NEW: Visible FAQ section, styled to match the rest of the article
+// template (same h2 treatment as the rest of the body, same card
+// language as the author bio box below it).
+function FaqSection({ faq }: { faq: { question: string; answer: string }[] }) {
+  if (!faq || faq.length === 0) return null;
+
+  return (
+    <section className="mt-20 pt-12 border-t border-slate-100">
+      <h2 className="font-heading text-3xl md:text-5xl font-black italic uppercase mb-10 text-slate-900 tracking-tighter leading-[0.9]">
+        FAQ<span className="text-emerald-500">.</span>
+      </h2>
+      <div className="space-y-8">
+        {faq.map((item, i) => (
+          <div key={i}>
+            <h3 className="text-lg font-black text-slate-900 mb-2">{item.question}</h3>
+            <p className="text-slate-600 text-base leading-relaxed font-medium">{item.answer}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -319,6 +370,7 @@ export default async function ArticlePage({ params }: Props) {
           mainImage,
           _createdAt,
           _updatedAt,
+          faq,
           author->{
             name,
             bio,
@@ -354,6 +406,7 @@ export default async function ArticlePage({ params }: Props) {
         {/* PTB-DEPLOY-v2 */}
         <ArticleJsonLd post={post} slug={slug} />
         <BreadcrumbJsonLd slug={slug} title={post.title} />
+        <FaqJsonLd faq={post.faq} />
 
         <div className="flex items-center gap-4 mb-10 flex-wrap">
           <span className="bg-emerald-500 text-[10px] font-black uppercase px-3 py-1 text-white tracking-widest">
@@ -400,6 +453,8 @@ export default async function ArticlePage({ params }: Props) {
         </div>
 
         <ShareButtons title={post.title} slug={slug} />
+
+        <FaqSection faq={post.faq} />
 
         {/* AUTHOR BIO BOX CONTAINER */}
         {post.author && (
