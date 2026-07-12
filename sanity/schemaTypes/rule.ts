@@ -43,14 +43,47 @@ export default defineType({
   name: 'faq',
   title: 'FAQ',
   type: 'array',
-  group: 'content',
+  group: 'content', // remove this line in post.ts if you don't use field groups there
   of: [
     {
       type: 'object',
       name: 'faqItem',
       fields: [
         { name: 'question', type: 'string', title: 'Question' },
-        { name: 'answer', type: 'text', title: 'Answer' },
+        {
+          name: 'answer',
+          type: 'array',
+          title: 'Answer',
+          of: [
+            {
+              type: 'block',
+              styles: [{ title: 'Normal', value: 'normal' }],
+              lists: [],
+              marks: {
+                decorators: [
+                  { title: 'Bold', value: 'strong' },
+                  { title: 'Italic', value: 'em' },
+                ],
+                annotations: [
+                  {
+                    name: 'link',
+                    type: 'object',
+                    title: 'Link',
+                    fields: [
+                      {
+                        name: 'href',
+                        type: 'url',
+                        title: 'URL',
+                        validation: (Rule: any) =>
+                          Rule.uri({ scheme: ['http', 'https', 'mailto', 'tel'] }),
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
       ],
       preview: {
         select: { title: 'question' },
