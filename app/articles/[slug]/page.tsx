@@ -237,7 +237,7 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
 // NEW: Visible FAQ section, styled to match the rest of the article
 // template (same h2 treatment as the rest of the body, same card
 // language as the author bio box below it).
-function FaqSection({ faq }: { faq: { question: string; answer: string }[] }) {
+function FaqSection({ faq }: { faq: { question: string; answer: any }[] }) {
   if (!faq || faq.length === 0) return null;
 
   return (
@@ -249,10 +249,7 @@ function FaqSection({ faq }: { faq: { question: string; answer: string }[] }) {
         {faq.map((item, i) => (
           <div key={i}>
             <h3 className="text-lg font-black text-slate-900 mb-2">{item.question}</h3>
-            <p
-              className="text-slate-600 text-base leading-relaxed font-medium [&_a]:text-emerald-600 [&_a]:font-bold [&_a]:underline [&_a]:decoration-emerald-200 [&_a]:underline-offset-4 [&_a]:hover:text-emerald-700 [&_a]:transition-colors"
-              dangerouslySetInnerHTML={{ __html: item.answer }}
-            />
+            <PortableText value={item.answer} components={faqAnswerComponents} />
           </div>
         ))}
       </div>
