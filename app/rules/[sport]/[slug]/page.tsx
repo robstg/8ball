@@ -1,3 +1,4 @@
+```tsx
 import { client } from "@/sanity/lib/client"
 import { PortableText, PortableTextComponents } from "@portabletext/react"
 import { AlertCircle, ArrowLeft } from "lucide-react"
@@ -7,7 +8,7 @@ import imageUrlBuilder from "@sanity/image-url"
 import { Metadata } from "next"
 import { createElement } from "react"
 
-// THE FIX: Dynamic Metadata generation for Rule Detail Pages
+// Dynamic Metadata generation for Rule Detail Pages
 export async function generateMetadata({ params }: { params: Promise<{ sport: string, slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
   const { slug } = resolvedParams;
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sport: st
   }
 
   return {
-    title: rule.title, // This replaces the %s in your root layout template
+    title: rule.title,
     description: rule.quickVerdict || `Full technical breakdown of the ${rule.title} rule for competitive play.`,
   };
 }
@@ -55,9 +56,6 @@ const portableTextComponents: PortableTextComponents = {
       )
     },
     image: ({ value }: any) => {
-      // FIX: query dereferences asset->, so the shape is the resolved asset
-      // (has _id, url, etc.) not the raw reference (_ref). Check for both
-      // so images actually render instead of silently returning null.
       if (!value?.asset?._id && !value?.asset?._ref) return null
       return (
         <div className="my-12 rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
@@ -76,7 +74,7 @@ const portableTextComponents: PortableTextComponents = {
     }
   },
   marks: {
-    link: ({ children, value }) => {
+    link: ({ children, value }: any) => {
       const href = value?.href || '#'
       const isExternal = href.startsWith('http')
       return createElement(
@@ -98,11 +96,46 @@ const portableTextComponents: PortableTextComponents = {
   }
 }
 
+const faqAnswerComponents: PortableTextComponents = {
+  marks: {
+    link: ({ children, value }: any) => {
+      const href = value?.href || '#'
+      const isExternal = href.startsWith('http')
+      return (
+        <a
+          href={href}
+          target={isExternal ? '_blank' : undefined}
+          rel={isExternal ? 'noreferrer noopener' : undefined}
+          className="text-emerald-600 font-bold underline decoration-emerald-200 underline-offset-4 hover:text-emerald-700 transition-colors"
+        >
+          {children}
+        </a>
+      )
+    },
+  },
+  block: {
+    normal: ({ children }: any) => (
+      <p className="text-slate-600 text-base leading-relaxed font-medium mb-2 last:mb-0">
+        {children}
+      </p>
+    ),
+  },
+}
+
+function portableTextToPlainText(blocks: any[] = []): string {
+  return blocks
+    .map((block) => {
+      if (block._type !== 'block' || !block.children) return ''
+      return block.children.map((child: any) => child.text).join('')
+    })
+    .join(' ')
+    .trim()
+}
+
 export default async function RuleDetailPage({ params }: { params: Promise<{ sport: string, slug: string }> }) {
   const resolvedParams = await params
   const { sport, slug } = resolvedParams
 
-  // THE FIX: Deep asset projection tells Sanity to pull raw image metadata inside the body block array
   const rule = await client.fetch(
     `*[_type == "rule" && slug.current == $ruleSlug][0]{
       ...,
@@ -119,19 +152,15 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
 
   if (!rule) return notFound()
 
-  // Build FAQPage JSON-LD from the rule.faq array (added in the Sanity schema:
-  // an array field named "faq" with objects of { question, answer }).
-  // Rendered server-side, straight into <head>-equivalent output — never through
-  // PortableText, so it can't get escaped or dumped as visible text.
   const faqSchema = rule.faq?.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": rule.faq.map((item: { question: string; answer: string }) => ({
+    "mainEntity": rule.faq.map((item: { question: string; answer: any }) => ({
       "@type": "Question",
       "name": item.question,
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": item.answer,
+        "text": portableTextToPlainText(item.answer),
       },
     })),
   } : null
@@ -203,20 +232,19 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ spo
         )}
 
         <div className="prose-custom">
-          {/* Now containing perfectly resolved deep asset fields */}
           <PortableText value={rule.content} components={portableTextComponents} />
         </div>
 
         {rule.faq?.length > 0 && (
-          <section className="mt-20 border-t border-slate-100 pt-12">
+          <section className="mt-4">
             <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900 mb-8">
               FAQ<span className="text-emerald-500">.</span>
             </h2>
             <div className="space-y-8">
-              {rule.faq.map((item: { question: string; answer: string }, i: number) => (
+              {rule.faq.map((item: { question: string; answer: any }, i: number) => (
                 <div key={i}>
                   <h3 className="text-lg font-black text-slate-900 mb-2">{item.question}</h3>
-                  <p className="text-slate-600 text-base leading-relaxed font-medium">{item.answer}</p>
+                  <PortableText value={item.answer} components={faqAnswerComponents} />
                 </div>
               ))}
             </div>
