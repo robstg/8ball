@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const canonicalUrl = `https://pottheblack.com/articles/${slug}`;
 
     return {
-      title: `${post.title} | Pot The Black`,
+      title: `${post.title}`,
       description,
       keywords: [
         "pool technique",
