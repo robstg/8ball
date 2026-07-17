@@ -2,6 +2,9 @@ import { client } from "@/sanity/lib/client";
 import { Metadata } from "next";
 import Link from "next/link";
 
+export const revalidate = 0; 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Interactive Cue Sports Tools | Pot The Black",
   description:
