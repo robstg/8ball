@@ -3,6 +3,7 @@ import { type SchemaTypeDefinition } from 'sanity'
 // Documents
 import post from './post'
 import page from './page'
+import tool from "./tool";
 import category from './category' 
 import rule from './rule'
 import guide from './guide' // Import for the Gear Lab
@@ -19,6 +20,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     // Documents
     post, 
     page, 
+    tool,
     category, 
     rule, 
     guide,
