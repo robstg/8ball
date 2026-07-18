@@ -9,6 +9,19 @@ export function Masthead({ latestPost }: { latestPost: any }) {
   // If no post is found, we don't show a Masthead. 
   if (!latestPost) return null;
 
+  // The headline was a flat text-4xl/6xl/7xl regardless of title length.
+  // Fine for a short punchy title, but a long title (this week's is ~130
+  // characters) wraps to 5-6 lines at that size and swamps the whole fold.
+  // Step the size down as length increases so short titles stay bold and
+  // long ones stay balanced against the excerpt/image beside them.
+  const getHeadlineSize = (title: string) => {
+    const len = title?.length || 0;
+    if (len <= 45) return "text-4xl md:text-6xl lg:text-7xl";
+    if (len <= 75) return "text-3xl md:text-5xl lg:text-6xl";
+    if (len <= 110) return "text-2xl md:text-4xl lg:text-5xl";
+    return "text-xl md:text-3xl lg:text-4xl";
+  };
+
   const publishedDate = latestPost._createdAt
     ? new Date(latestPost._createdAt).toLocaleDateString("en-NZ", {
         day: "numeric",
@@ -49,7 +62,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
 
             {/* Main Headline — now a clickable link straight to the article */}
             <Link href={`/articles/${latestPost.slug}`} className="group/headline">
-              <h1 className="font-[family-name:var(--font-heading)] text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.85] uppercase italic text-slate-900 transition-colors duration-300 group-hover/headline:text-emerald-600">
+              <h1 className={`font-[family-name:var(--font-heading)] ${getHeadlineSize(latestPost.title)} font-bold tracking-tight leading-[0.85] uppercase italic text-slate-900 transition-colors duration-300 group-hover/headline:text-emerald-600`}>
                 {latestPost.title}
               </h1>
             </Link>
