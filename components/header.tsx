@@ -45,6 +45,7 @@ export function Header() {
     { href: '/rules', label: 'Rules' },
     { href: '/news', label: 'News' },
     { href: '/about-us', label: 'About' },
+        { href: '/tools', label: 'Tools' },
   ]
 
   return (
