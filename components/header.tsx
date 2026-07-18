@@ -14,7 +14,29 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40)
+    // Single-threshold toggling here caused a feedback loop: when `scrolled`
+    // flips, the header's own height changes (padding/logo size), which
+    // shifts scrollY, which can flip `scrolled` right back — repeatedly,
+    // right around the threshold. That's the "shaking" behaviour.
+    //
+    // Fix: hysteresis. Use two thresholds with a dead zone between them, so
+    // once shrunk it takes scrolling well back up to expand again, and vice
+    // versa. Scroll position can't ping-pong across a single line anymore.
+    const SHRINK_AT = 80   // must scroll past this (while expanded) to shrink
+    const EXPAND_AT = 20   // must scroll back below this (while shrunk) to expand
+
+    let ticking = false
+
+    const handleScroll = () => {
+      if (ticking) return
+      ticking = true
+      window.requestAnimationFrame(() => {
+        const y = window.scrollY
+        setScrolled((prev) => (prev ? y > EXPAND_AT : y > SHRINK_AT))
+        ticking = false
+      })
+    }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
