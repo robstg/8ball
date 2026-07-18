@@ -22,7 +22,14 @@ export function Header() {
     // Fix: hysteresis. Use two thresholds with a dead zone between them, so
     // once shrunk it takes scrolling well back up to expand again, and vice
     // versa. Scroll position can't ping-pong across a single line anymore.
-    const SHRINK_AT = 80   // must scroll past this (while expanded) to shrink
+    // Previous gap (80/20 = 60px) wasn't wide enough. The header's actual
+    // height change on shrink — padding, logo scaling from w-40/h-40 down
+    // to w-20/h-20 on desktop, margin drops — adds up to roughly 140px.
+    // A 60px gap gets blown straight through by that shift, so the toggle
+    // still bounces back and forth, just needing a bigger scroll nudge to
+    // kick it off. Widening the gap well past the actual shift (with a
+    // healthy buffer) removes any path back into the feedback loop.
+    const SHRINK_AT = 220  // must scroll past this (while expanded) to shrink
     const EXPAND_AT = 20   // must scroll back below this (while shrunk) to expand
 
     let ticking = false
