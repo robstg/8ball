@@ -4,6 +4,7 @@ import { PortableText, PortableTextComponents } from "@portabletext/react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { HtmlEmbed } from "@/components/html-embed";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -103,9 +104,6 @@ function BreadcrumbJsonLd({ slug, title }: { slug: string; title: string }) {
 }
 
 // ==================== PORTABLE TEXT (intro copy) ====================
-// Deliberately minimal — intro copy is a couple of explanatory paragraphs,
-// not a full article, so it doesn't need the image/code/htmlEmbed handlers
-// that ptComponents has in the article template.
 const introComponents: PortableTextComponents = {
   marks: {
     link: ({ children, value }: any) => {
@@ -196,9 +194,9 @@ export default async function ToolPage({ params }: Props) {
 
         {embedMarkup && (
           <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
-            <div
+            <HtmlEmbed
+              html={embedMarkup}
               className="w-full max-w-full overflow-auto text-slate-900"
-              dangerouslySetInnerHTML={{ __html: embedMarkup }}
             />
           </div>
         )}
