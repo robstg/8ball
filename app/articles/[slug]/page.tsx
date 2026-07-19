@@ -4,6 +4,7 @@ import { PortableText, PortableTextComponents } from "@portabletext/react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { HtmlEmbed } from "@/components/html-embed";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -250,10 +251,7 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
   );
 }
 
-// Portable Text renderer config specifically for FAQ answers — this was
-// the piece missing from the previous file, causing a ReferenceError.
-// Kept deliberately small: just link marks and a plain paragraph block,
-// matching what the schema allows editors to add in Studio.
+// Portable Text renderer config specifically for FAQ answers.
 const faqAnswerComponents: PortableTextComponents = {
   marks: {
     link: ({ children, value }: any) => {
@@ -280,9 +278,6 @@ const faqAnswerComponents: PortableTextComponents = {
   },
 };
 
-// Visible FAQ section, styled to match the rest of the article template.
-// `answer` is Portable Text, so it renders via PortableText with the
-// components config above.
 function FaqSection({ faq }: { faq: { question: string; answer: any }[] }) {
   if (!faq || faq.length === 0) return null;
 
@@ -326,11 +321,16 @@ const ptComponents = {
       if (!value?.code) return null;
       const isHtml = value.language === "html" || value.code.trim().startsWith("<");
       if (isHtml) {
+        // Was a raw dangerouslySetInnerHTML div — any embedded <script>
+        // tags were inert on client-side navigation (only worked after a
+        // hard refresh). HtmlEmbed fixes that by re-inserting scripts as
+        // real DOM nodes so they actually execute every time. See
+        // components/html-embed.tsx for the full explanation.
         return (
           <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
-            <div
+            <HtmlEmbed
+              html={value.code}
               className="w-full max-w-full overflow-auto text-slate-900"
-              dangerouslySetInnerHTML={{ __html: value.code }}
             />
           </div>
         );
@@ -341,15 +341,15 @@ const ptComponents = {
         </pre>
       );
     },
-    // renderer for the custom `htmlEmbed` schema type.
+    // renderer for the custom `htmlEmbed` schema type. Same fix as above.
     htmlEmbed: ({ value }: any) => {
       const markup = value?.html || value?.code;
       if (!markup) return null;
       return (
         <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
-          <div
+          <HtmlEmbed
+            html={markup}
             className="w-full max-w-full overflow-auto text-slate-900"
-            dangerouslySetInnerHTML={{ __html: markup }}
           />
         </div>
       );
@@ -445,7 +445,7 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
       <article className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
-        {/* PTB-DEPLOY-v3 */}
+        {/* PTB-DEPLOY-v4 */}
         <ArticleJsonLd post={post} slug={slug} />
         <BreadcrumbJsonLd slug={slug} title={post.title} />
         <FaqJsonLd faq={post.faq} />
