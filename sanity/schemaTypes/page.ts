@@ -42,6 +42,9 @@ export default defineType({
           ],
         },
 
+         // BLOCK: HTML Embed
+  { type: 'htmlEmbed' },
+
         // BLOCK: Engineering Hero (16:9 optimized)
         {
           type: 'object',
