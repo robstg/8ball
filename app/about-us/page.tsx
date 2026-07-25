@@ -53,6 +53,15 @@ const components = {
         ))}
       </div>
     ),
+    htmlEmbed: ({ value }: any) => {
+      const rawHtml = value.code || value.html || value.htmlCode || ''
+      return (
+        <div
+          className="ptb-embed-wrapper my-12"
+          dangerouslySetInnerHTML={{ __html: rawHtml }}
+        />
+      )
+    },
   },
 }
 
