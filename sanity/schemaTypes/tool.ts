@@ -90,6 +90,15 @@ export default defineType({
       group: "meta",
     }),
     defineField({
+      name: "fullWidth",
+      title: "Break out to full page width",
+      description:
+        "Off by default — the embed sits inside the site's normal content width, same as articles. Turn on for content-heavy tools (long scenario pickers, reference lists) that benefit from more room than the standard container gives, like a full-page app rather than an in-article widget.",
+      type: "boolean",
+      initialValue: false,
+      group: "meta",
+    }),
+    defineField({
       name: "order",
       title: "Sort order on hub",
       description: "Lower numbers appear first. Leave blank to sort by newest.",

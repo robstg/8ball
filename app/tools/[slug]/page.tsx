@@ -147,6 +147,7 @@ export default async function ToolPage({ params }: Props) {
           category,
           icon,
           intro,
+          fullWidth,
           embed{ html, code, caption },
           relatedArticles[]->{
             title,
@@ -193,10 +194,20 @@ export default async function ToolPage({ params }: Props) {
         )}
 
         {embedMarkup && (
-          <div className="my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center">
+          <div
+            className={
+              tool.fullWidth
+                ? "my-16 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] bg-white"
+                : "my-16 w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl flex justify-center"
+            }
+          >
             <HtmlEmbed
               html={embedMarkup}
-              className="w-full max-w-full overflow-auto text-slate-900"
+              className={
+                tool.fullWidth
+                  ? "w-full text-slate-900"
+                  : "w-full max-w-full overflow-auto text-slate-900"
+              }
             />
           </div>
         )}
