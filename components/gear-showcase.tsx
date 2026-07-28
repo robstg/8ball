@@ -26,15 +26,15 @@ export function GearShowcase({ items }: { items: GearItem[] }) {
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Microscope size={16} className="text-emerald-500" />
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">The Engineering Lab</span>
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Gear Reviews</span>
           </div>
           <h2 className="font-heading text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">
-            TECHNICAL <span className="text-emerald-500">GEAR REPORTS.</span>
+            CUES, CHALK <span className="text-emerald-500">& EQUIPMENT.</span>
           </h2>
         </div>
         
         <Link href="/guides" className="px-8 py-4 rounded-full border border-slate-200 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 group">
-          Explore the full lab <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+          See all reviews <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
 
@@ -69,10 +69,10 @@ export function GearShowcase({ items }: { items: GearItem[] }) {
                 
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
 
-                {/* Badge Overlay - Fallback to 'Report' if Sanity field is empty */}
+                {/* Badge Overlay - Fallback to 'Review' if Sanity field is empty */}
                 <div className="absolute top-4 left-4 z-10">
                   <span className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 text-[8px] font-black uppercase tracking-widest text-emerald-400 shadow-lg">
-                    {item.badge || "Technical Report"}
+                    {item.badge || "Review"}
                   </span>
                 </div>
               </div>
@@ -91,7 +91,7 @@ export function GearShowcase({ items }: { items: GearItem[] }) {
 
                 <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Tech Rating</span>
+                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Our Rating</span>
                     <span className="text-xl font-black italic text-slate-900 tracking-tighter">
                       {item.score || "9.0"}<span className="text-emerald-500">/10</span>
                     </span>
