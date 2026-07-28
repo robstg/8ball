@@ -92,7 +92,7 @@ export function RulesFeature() {
               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100">
                 <Trophy className="w-5 h-5 text-emerald-600" />
               </div>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">The Official Archives</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Rules Reference</span>
             </div>
             
             <h2 className="font-[family-name:var(--font-heading)] text-5xl md:text-7xl font-black tracking-tighter leading-[0.85] uppercase italic text-slate-900">
