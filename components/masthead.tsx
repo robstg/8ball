@@ -52,7 +52,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Latest Masterclass</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Latest Post</span>
               {publishedDate && (
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                   · {publishedDate}
@@ -69,7 +69,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
             
             {/* Excerpt Text */}
             <p className="mt-8 text-lg text-slate-500 max-w-md leading-relaxed">
-              {latestPost.excerpt || "Advanced technical analysis and pro strategies for the modern player."}
+              {latestPost.excerpt || "News, tips and gear talk for pool, snooker and Heyball players."}
             </p>
             
             {/* Navigation Buttons */}
@@ -109,7 +109,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
               ) : (
                 <div className="w-full h-full bg-[#004d33] flex flex-col items-center justify-center p-12 text-center">
                    <span className="text-white font-black uppercase tracking-widest text-xs italic">
-                     Pot The Black Archive
+                     Pot The Black
                    </span>
                 </div>
               )}
@@ -120,7 +120,7 @@ export function Masthead({ latestPost }: { latestPost: any }) {
               {/* Hover affordance so it reads as clickable, not just decorative */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
                 <span className="opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
-                  Read the Masterclass →
+                  Read the Article →
                 </span>
               </div>
             </motion.div>
