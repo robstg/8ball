@@ -10,7 +10,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   return (
     <>
       {!isStudio && <Header />}
-      <div className={!isStudio ? "pt-20 min-h-screen bg-white shadow-sm max-w-[1600px] mx-auto" : "h-screen overflow-hidden"}>
+      <div className={!isStudio ? "pt-8 min-h-screen bg-white shadow-sm max-w-[1600px] mx-auto" : "h-screen overflow-hidden"}>
         {children}
       </div>
     </>
