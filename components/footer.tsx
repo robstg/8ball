@@ -16,8 +16,8 @@ const footerColumns = [
   {
     heading: "Resources",
     links: [
-      { label: "Masterclass Archive", href: "/articles" },
-      { label: "Gear Lab", href: "/guides" },
+      { label: "All Posts", href: "/articles" },
+      { label: "Gear Reviews", href: "/guides" },
       { label: "News", href: "/news" },
     ],
   },
@@ -44,7 +44,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-16 flex flex-col lg:flex-row items-center justify-between gap-8">
           <div className="text-center lg:text-left">
             <h2 className="font-[family-name:var(--font-heading)] text-3xl md:text-4xl font-black italic uppercase tracking-tight text-white">
-              Never Miss a Masterclass
+              Get the Weekly Wrap-Up
             </h2>
             <p className="mt-3 text-white/60 max-w-md">
               Weekly cue sports news, technique breakdowns, and gear reviews — straight to your inbox, no fluff.
@@ -66,7 +66,7 @@ export function Footer() {
               Pot The Black
             </span>
             <p className="mt-4 text-sm text-white/50 leading-relaxed max-w-xs">
-              The definitive technical resource for serious cue sports players.
+              News, rules and gear talk for pool, snooker and Heyball players.
             </p>
           </div>
 
