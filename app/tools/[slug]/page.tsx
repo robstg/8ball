@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { HtmlEmbed } from "@/components/html-embed";
+import { ChartDownloadButton } from "@/components/chart-download-button";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -61,20 +62,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function ToolJsonLd({ tool, slug }: { tool: any; slug: string }) {
   const url = `https://pottheblack.com/tools/${slug}`;
 
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: tool.title,
-    description: tool.shortDescription || "",
-    url,
-    applicationCategory: "SportsApplication",
-    operatingSystem: "Any",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-    },
-  };
+  const schema =
+    tool.resourceType === "printable"
+      ? {
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: tool.title,
+          description: tool.shortDescription || "",
+          url,
+          mainEntity: (tool.charts || []).map((c: any) => ({
+            "@type": "DigitalDocument",
+            name: c.chartTitle,
+            encodingFormat: "application/pdf",
+            url: c.pdfFile?.asset?.url,
+          })),
+        }
+      : {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: tool.title,
+          description: tool.shortDescription || "",
+          url,
+          applicationCategory: "SportsApplication",
+          operatingSystem: "Any",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+          },
+        };
 
   return (
     <script
@@ -134,6 +150,12 @@ const introComponents: PortableTextComponents = {
   },
 };
 
+const DISCIPLINE_LABELS: Record<string, string> = {
+  snooker: "Snooker",
+  pool: "Pool",
+  heyball: "Heyball",
+};
+
 // ==================== MAIN PAGE ====================
 export default async function ToolPage({ params }: Props) {
   const { slug } = await params;
@@ -148,7 +170,25 @@ export default async function ToolPage({ params }: Props) {
           icon,
           intro,
           fullWidth,
+          resourceType,
+          discipline,
           embed{ html, code, caption },
+          charts[]{
+            chartTitle,
+            shortDescription,
+            dimensions,
+            previewImage,
+            pdfFile{
+              asset->{
+                url,
+                originalFilename
+              }
+            }
+          },
+          relatedRulesPage->{
+            title,
+            "slug": slug.current
+          },
           relatedArticles[]->{
             title,
             "slug": slug.current,
@@ -164,7 +204,9 @@ export default async function ToolPage({ params }: Props) {
     }
 
     const tool = data.tool;
+    const isPrintable = tool.resourceType === "printable";
     const embedMarkup = tool.embed?.html || tool.embed?.code;
+    const disciplineLabel = tool.discipline ? DISCIPLINE_LABELS[tool.discipline] : null;
 
     return (
       <div className="max-w-6xl mx-auto pt-40 pb-32 px-6 md:px-12 lg:px-20 text-slate-900 min-h-screen bg-white">
@@ -173,9 +215,14 @@ export default async function ToolPage({ params }: Props) {
 
         <div className="flex items-center gap-4 mb-10 flex-wrap">
           <span className="bg-emerald-500 text-[10px] font-black uppercase px-3 py-1 text-white tracking-widest">
-            Tool
+            {isPrintable ? "Printable Charts" : "Tool"}
           </span>
-          {tool.category && (
+          {isPrintable && disciplineLabel && (
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+              {disciplineLabel}
+            </span>
+          )}
+          {!isPrintable && tool.category && (
             <span className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
               {tool.category}
             </span>
@@ -193,7 +240,8 @@ export default async function ToolPage({ params }: Props) {
           </div>
         )}
 
-        {embedMarkup && (
+        {/* ---------- Interactive tool embed ---------- */}
+        {!isPrintable && embedMarkup && (
           <div
             className={
               tool.fullWidth
@@ -211,10 +259,72 @@ export default async function ToolPage({ params }: Props) {
             />
           </div>
         )}
-        {tool.embed?.caption && (
+        {!isPrintable && tool.embed?.caption && (
           <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 mb-16 italic text-center font-bold">
             {tool.embed.caption}
           </p>
+        )}
+
+        {/* ---------- Printable chart set ---------- */}
+        {isPrintable && tool.charts?.length > 0 && (
+          <div className="my-16 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {tool.charts.map((chart: any, i: number) => (
+              <div
+                key={i}
+                className="rounded-[2rem] border border-slate-200 bg-white shadow-xl overflow-hidden flex flex-col"
+              >
+                {chart.previewImage && (
+                  <div className="relative aspect-[210/297] w-full bg-slate-50 border-b border-slate-100">
+                    <Image
+                      src={urlFor(chart.previewImage).width(800).url()}
+                      alt={chart.chartTitle}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+                <div className="p-8 flex flex-col flex-1">
+                  <h3 className="text-xl font-black uppercase italic tracking-tight text-slate-900 mb-2">
+                    {chart.chartTitle}
+                  </h3>
+                  {chart.shortDescription && (
+                    <p className="text-slate-600 text-sm mb-4 flex-1">
+                      {chart.shortDescription}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-4 mt-auto pt-4">
+                    {chart.pdfFile?.asset?.url && (
+                      <ChartDownloadButton
+                        href={chart.pdfFile.asset.url}
+                        filename={chart.pdfFile.asset.originalFilename}
+                        chartTitle={chart.chartTitle}
+                        discipline={tool.discipline}
+                      />
+                    )}
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      {chart.dimensions || "A4"} PDF
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ---------- Related rules page callout (printable only) ---------- */}
+        {isPrintable && tool.relatedRulesPage?.slug && (
+          <div className="my-16 rounded-2xl border border-emerald-100 bg-emerald-50 px-8 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <p className="text-slate-700 text-sm md:text-base">
+              Want the full rulebook to go with it?{" "}
+              <span className="font-bold text-slate-900">{tool.relatedRulesPage.title}</span>
+            </p>
+            <Link
+              href={`/articles/${tool.relatedRulesPage.slug}`}
+              className="shrink-0 inline-flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-[0.2em] px-6 py-3 rounded-full transition-colors"
+            >
+              Read the Rules
+            </Link>
+          </div>
         )}
 
         {tool.relatedArticles?.length > 0 && (
