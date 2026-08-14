@@ -23,7 +23,7 @@ export function ChartDownloadButton({
   };
 
   return (
-    
+    <a
       href={href}
       download={filename}
       onClick={handleClick}
