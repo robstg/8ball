@@ -23,9 +23,9 @@ export function ChartDownloadButton({
   };
 
   return (
-    <a
-      href={href}
-      download={filename}
+    <a href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={handleClick}
       className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black uppercase tracking-[0.2em] px-6 py-3 rounded-full transition-colors"
     >
