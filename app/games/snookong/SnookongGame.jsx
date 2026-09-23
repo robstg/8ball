@@ -25,7 +25,8 @@ const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
 const CUE_SPEED = 4.6;
-const OBJECT_FRICTION = 0.988;
+// Adjusted from 0.988 to 0.9908 to increase roll distance by ~30%
+const OBJECT_FRICTION = 0.9908;
 const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
@@ -571,7 +572,6 @@ export default function SnookongGame() {
     engine.score = Math.max(0, engine.score - penalty);
     engine.currentBreak = 0;
 
-    // Reset requirement to RED if reds remain on table
     if (engine.redsRemaining > 0) {
       engine.targetState = 'RED';
       setTargetBallType('RED');
@@ -591,7 +591,6 @@ export default function SnookongGame() {
     engine.currentBreak = 0;
     engine.lives -= 1;
 
-    // Reset requirement to RED if reds remain on table
     if (engine.redsRemaining > 0) {
       engine.targetState = 'RED';
       setTargetBallType('RED');
@@ -934,7 +933,7 @@ export default function SnookongGame() {
         });
       }
 
-      // Object Balls Movement & Friction
+      // Object Balls Movement & Calibrated Friction (+30% roll distance)
       engine.balls.forEach(ball => {
         if (ball.isPotted) return;
 
@@ -943,7 +942,8 @@ export default function SnookongGame() {
         ball.vx *= OBJECT_FRICTION;
         ball.vy *= OBJECT_FRICTION;
 
-        if (Math.hypot(ball.vx, ball.vy) < 0.035) {
+        // Smooth coast to a stop without premature snapping
+        if (Math.hypot(ball.vx, ball.vy) < 0.025) {
           ball.vx = 0;
           ball.vy = 0;
         }
@@ -1604,7 +1604,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg - 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="-5° (Down Arrow)"
+                title="-5° (Down Arrow / S)"
               >
                 <Minus size={13} />
               </button>
@@ -1619,7 +1619,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg + 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="+5° (Up Arrow)"
+                title="+5° (Up Arrow / W)"
               >
                 <Plus size={13} />
               </button>
@@ -1665,7 +1665,7 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
+                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
                 <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
