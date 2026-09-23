@@ -335,7 +335,7 @@ export default function SnookongGame() {
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
     aimOffsetDeg: 0,
-    consecutiveSideBounces: 0, // Anti-loop tracking
+    consecutiveSideBounces: 0,
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -568,6 +568,7 @@ export default function SnookongGame() {
     }
   };
 
+  // Passive fouls: deduct score and reset active break; return target to RED if reds remain
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -585,6 +586,7 @@ export default function SnookongGame() {
     setTimeout(() => setFoulBanner(null), 1800);
   };
 
+  // Critical scratches: paddle drains or pocket scratches; return target to RED if reds remain
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -658,7 +660,9 @@ export default function SnookongGame() {
         if (ball.type === 'RED') {
           engine.score += 1;
           engine.currentBreak += 1;
-          if (engine.currentBreak > engine.highestBreak) engine.highestBreak = engine.currentBreak;
+          if (engine.currentBreak > engine.highestBreak) {
+            engine.highestBreak = engine.currentBreak;
+          }
           engine.redsRemaining -= 1;
           engine.potLog.push('🔴');
 
@@ -670,6 +674,7 @@ export default function SnookongGame() {
             setTargetBallType('ANY_COLOR');
           }
 
+          // Immediate synchronous React dispatch to ensure HUD reflects pot instantaneously
           setScore(engine.score);
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
@@ -684,7 +689,9 @@ export default function SnookongGame() {
           const pts = SNOOKER_COLORS[ball.type].value;
           engine.score += pts;
           engine.currentBreak += pts;
-          if (engine.currentBreak > engine.highestBreak) engine.highestBreak = engine.currentBreak;
+          if (engine.currentBreak > engine.highestBreak) {
+            engine.highestBreak = engine.currentBreak;
+          }
           engine.potLog.push(getColorEmoji(ball.type));
 
           respotBall(ball);
@@ -704,7 +711,9 @@ export default function SnookongGame() {
         const pts = SNOOKER_COLORS[ball.type].value;
         engine.score += pts;
         engine.currentBreak += pts;
-        if (engine.currentBreak > engine.highestBreak) engine.highestBreak = engine.currentBreak;
+        if (engine.currentBreak > engine.highestBreak) {
+          engine.highestBreak = engine.currentBreak;
+        }
         engine.potLog.push(getColorEmoji(ball.type));
 
         engine.clearanceIndex += 1;
@@ -865,7 +874,6 @@ export default function SnookongGame() {
         cue.vy = 0;
         cue.active = false;
       } else if (cue.active) {
-        // Enforce anti-horizontal loop safeguard (minimum vertical velocity floor)
         if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
           const dir = cue.vy >= 0 ? 1 : -1;
           cue.vy = dir * MIN_VERTICAL_VELOCITY;
@@ -874,7 +882,6 @@ export default function SnookongGame() {
         cue.x += cue.vx;
         cue.y += cue.vy;
 
-        // Preserve calibrated constant cue speed
         const speed = Math.hypot(cue.vx, cue.vy);
         if (speed > 0.001) {
           cue.vx = (cue.vx / speed) * CUE_SPEED;
@@ -887,7 +894,6 @@ export default function SnookongGame() {
           cue.vx = Math.abs(cue.vx);
           engine.consecutiveSideBounces += 1;
 
-          // Break loop: if 2+ consecutive side bounces occur or angle is flat, tilt downward/upward
           if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
             const tilt = cue.y < 420 ? 1.5 : -1.5;
             cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
@@ -961,7 +967,7 @@ export default function SnookongGame() {
         });
       }
 
-      // Object Balls Movement & Friction
+      // Object Balls Movement & Calibrated Friction
       engine.balls.forEach(ball => {
         if (ball.isPotted) return;
 
@@ -1025,7 +1031,7 @@ export default function SnookongGame() {
           const dist = Math.hypot(dx, dy);
 
           if (dist < cue.radius + ball.radius && dist > 0) {
-            engine.consecutiveSideBounces = 0; // Reset loop counter on ball hit
+            engine.consecutiveSideBounces = 0;
 
             const nx = dx / dist;
             const ny = dy / dist;
@@ -1044,7 +1050,6 @@ export default function SnookongGame() {
             ball.vx += p * nx;
             ball.vy += p * ny;
 
-            // Prevent collision from dampening vertical velocity to dead-zero
             if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
               cue.vy = (cue.vy >= 0 ? 1 : -1) * MIN_VERTICAL_VELOCITY;
             }
@@ -1497,19 +1502,26 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </header>
 
-      {/* 2. COMPACT DUAL STRIP HUD */}
+      {/* 2. COMPACT DUAL STRIP HUD WITH ACTIVE + BEST BREAK TRACKING */}
       <div className="w-full max-w-[420px] mx-auto flex flex-col space-y-1 my-0.5 shrink-0">
         <div className="grid grid-cols-4 gap-1.5 text-center">
           <div className="bg-neutral-900/90 border border-neutral-800 rounded-md p-1 shadow-inner">
             <div className="text-[9px] uppercase text-neutral-400 font-semibold">Score</div>
             <div className="text-base font-black text-white leading-tight">{score}</div>
           </div>
-          <div className="bg-neutral-900/90 border border-neutral-800 rounded-md p-1 shadow-inner">
+          <div className="bg-neutral-900/90 border border-neutral-800 rounded-md p-1 shadow-inner relative">
             <div className="text-[9px] uppercase text-amber-400 font-semibold flex items-center justify-center space-x-0.5">
               <Flame size={10} />
               <span>Break</span>
             </div>
-            <div className="text-base font-black text-amber-400 leading-tight">{currentBreak}</div>
+            <div className="text-base font-black text-amber-400 leading-tight">
+              {currentBreak}
+              {highestBreak > 0 && currentBreak !== highestBreak && (
+                <span className="text-[9px] font-normal text-neutral-500 ml-1">
+                  ({highestBreak})
+                </span>
+              )}
+            </div>
           </div>
           <div className="col-span-2 bg-neutral-900/90 border border-neutral-800 rounded-md p-1 flex flex-col justify-center items-center shadow-inner">
             <div className="text-[9px] uppercase text-neutral-400 font-semibold">Ball On</div>
@@ -1699,19 +1711,19 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike[cite: 2].
+                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
-                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize[cite: 2].
+                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
               </li>
               <li>
-                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket[cite: 2].
+                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
               </li>
               <li>
                 <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong>.
               </li>
               <li>
-                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black[cite: 2].
+                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
               </li>
             </ul>
 
