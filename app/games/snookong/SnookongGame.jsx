@@ -25,7 +25,7 @@ const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
 const CUE_SPEED = 4.6; // Calibrated speed for mobile reflex response
-const OBJECT_FRICTION = 0.988; // Realistic cloth rolling friction
+const OBJECT_FRICTION = 0.988; // Cloth rolling friction
 const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
@@ -404,6 +404,7 @@ export default function SnookongGame() {
       engine.isBreakShot = false;
     }
 
+    // Immediately transitions to PLAYING - cue stick vanishes
     engine.gameState = 'PLAYING';
     setGameState('PLAYING');
   }, []);
@@ -453,7 +454,6 @@ export default function SnookongGame() {
     }
   };
 
-  // Passive fouls: deduct score and reset break, but KEEP cue ball rolling
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -465,7 +465,6 @@ export default function SnookongGame() {
     setTimeout(() => setFoulBanner(null), 1800);
   };
 
-  // Critical scratches: only on paddle drains or pocket scratches
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -976,11 +975,15 @@ export default function SnookongGame() {
       ctx.fill();
     });
 
-    // Trajectory guide & Cue Stick
+    // Trajectory guide & Vertical Cue Stick (ONLY during BREAK_AIM)
+    if (engine.gameState === 'BREAK_AIM') {
+      const cueAngleRad = (engine.aimOffsetDeg * Math.PI) / 180;
+      drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, cueAngleRad);
+    }
+
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
       const rad = (-90 + engine.aimOffsetDeg) * (Math.PI / 180);
       drawTrajectoryGuide(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad, engine);
-      drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad);
     }
 
     // Paddle
@@ -1041,54 +1044,62 @@ export default function SnookongGame() {
     }
   };
 
-  const drawAuthenticCueStick = (ctx, ballX, ballY, rad) => {
+  // Renders the cue stick strictly VERTICAL behind the cue ball, extending downwards
+  const drawAuthenticCueStick = (ctx, ballX, ballY, angleRad) => {
     ctx.save();
     ctx.translate(ballX, ballY);
-    ctx.rotate(rad);
+    ctx.rotate(angleRad); // 0 rad = vertically aligned along +Y
 
-    const tipDist = BALL_RADIUS + 10;
-    const cueLength = 110;
-    const buttDist = tipDist + cueLength;
+    const tipDist = BALL_RADIUS + 4;
+    const shaftLen = 65;
+    const buttLen = 45;
 
+    // 1. Blue Chalked Tip (facing ball)
     ctx.fillStyle = '#0284c7';
     ctx.beginPath();
-    ctx.roundRect(-2.2, tipDist, 4.4, 4, 1);
+    ctx.roundRect(-2.2, tipDist, 4.4, 3, 1);
     ctx.fill();
 
+    // 2. Brass Ferrule
     ctx.fillStyle = '#eab308';
-    ctx.fillRect(-2.5, tipDist + 4, 5, 5);
+    ctx.fillRect(-2.4, tipDist + 3, 4.8, 4);
 
-    const shaftGrad = ctx.createLinearGradient(-3.5, tipDist + 9, 3.5, tipDist + 9);
+    // 3. Ash Wood Shaft (Tapered)
+    const shaftStart = tipDist + 7;
+    const shaftGrad = ctx.createLinearGradient(-3.5, shaftStart, 3.5, shaftStart);
     shaftGrad.addColorStop(0, '#fef3c7');
     shaftGrad.addColorStop(0.5, '#fde68a');
     shaftGrad.addColorStop(1, '#d97706');
     ctx.fillStyle = shaftGrad;
 
     ctx.beginPath();
-    ctx.moveTo(-2.5, tipDist + 9);
-    ctx.lineTo(2.5, tipDist + 9);
-    ctx.lineTo(4.8, buttDist - 28);
-    ctx.lineTo(-4.8, buttDist - 28);
+    ctx.moveTo(-2.4, shaftStart);
+    ctx.lineTo(2.4, shaftStart);
+    ctx.lineTo(3.8, shaftStart + shaftLen);
+    ctx.lineTo(-3.8, shaftStart + shaftLen);
     ctx.closePath();
     ctx.fill();
 
-    const buttGrad = ctx.createLinearGradient(-5, buttDist - 28, 5, buttDist - 28);
+    // 4. Ebony Butt with Splice
+    const buttStart = shaftStart + shaftLen;
+    const buttGrad = ctx.createLinearGradient(-5, buttStart, 5, buttStart);
     buttGrad.addColorStop(0, '#18181b');
     buttGrad.addColorStop(0.5, '#27272a');
     buttGrad.addColorStop(1, '#09090b');
     ctx.fillStyle = buttGrad;
 
     ctx.beginPath();
-    ctx.moveTo(-4.8, buttDist - 28);
-    ctx.lineTo(4.8, buttDist - 28);
-    ctx.lineTo(5.5, buttDist);
-    ctx.lineTo(-5.5, buttDist);
+    ctx.moveTo(-3.8, buttStart);
+    ctx.lineTo(3.8, buttStart);
+    ctx.lineTo(4.8, buttStart + buttLen);
+    ctx.lineTo(-4.8, buttStart + buttLen);
     ctx.closePath();
     ctx.fill();
 
+    // 5. Rubber Bumper at the bottom
     ctx.fillStyle = '#52525b';
     ctx.beginPath();
-    ctx.roundRect(-5.5, buttDist, 11, 4, 2);
+    ctx.roundRect(-4.8, buttStart + buttLen, 9.6, 4, 1.5);
     ctx.fill();
 
     ctx.restore();
