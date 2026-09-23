@@ -110,10 +110,10 @@ export default function GamesHubPage() {
 
       <div className="mt-24 pt-10 border-t border-slate-100">
         <Link
-          href="/tools"
+          href="/"
           className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-emerald-600 transition-colors"
         >
-          ← Back to Tools
+          ← Back to Home
         </Link>
       </div>
     </div>
