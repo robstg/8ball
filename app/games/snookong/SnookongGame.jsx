@@ -223,6 +223,10 @@ export default function SnookongGame() {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [historyPots, setHistoryPots] = useState([]);
   const [copiedToast, setCopiedToast] = useState(false);
+  // All-time best score, persisted in localStorage so it survives reloads
+  // and new visits — the current highestBreak state only tracks this session.
+  const [personalBest, setPersonalBest] = useState(0);
+  const [isNewBest, setIsNewBest] = useState(false);
 
   // Offset angle relative to straight up (-50° to +50°, 0° = straight towards top cushion)
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
@@ -434,6 +438,7 @@ export default function SnookongGame() {
     setHighestBreak(0);
     setLives(3);
     setFoulBanner(null);
+    setIsNewBest(false);
   };
 
   const toggleSound = () => {
@@ -621,6 +626,29 @@ export default function SnookongGame() {
       default: return '⚪';
     }
   };
+
+  // Load the saved personal best once, on mount. Wrapped in try/catch since
+  // localStorage can throw in private-browsing modes or if it's disabled.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('snookong-best-score');
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!Number.isNaN(parsed)) setPersonalBest(parsed);
+      }
+    } catch (e) {}
+  }, []);
+
+  // Whenever the live score overtakes the stored best, save the new one.
+  useEffect(() => {
+    if (score > personalBest) {
+      setPersonalBest(score);
+      setIsNewBest(true);
+      try {
+        window.localStorage.setItem('snookong-best-score', String(score));
+      } catch (e) {}
+    }
+  }, [score, personalBest]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1299,6 +1327,15 @@ Play on pottheblack.com/games/snookong`;
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          {personalBest > 0 && (
+            <span
+              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-full"
+              title="Your all-time best score"
+            >
+              <Trophy size={11} className="text-amber-400" />
+              {personalBest}
+            </span>
+          )}
           <button 
             onClick={toggleSound}
             className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-neutral-100 transition-colors"
@@ -1403,17 +1440,26 @@ Play on pottheblack.com/games/snookong`;
             <p className="text-xs text-neutral-400 mt-1">
               {gameState === 'VICTORY' ? 'Full snooker clearance executed.' : 'Lost all 3 cue lives to scratches or fouls.'}
             </p>
+            {isNewBest && (
+              <span className="mt-2 inline-block text-[11px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/40 px-2.5 py-1 rounded-full">
+                🏆 New Personal Best!
+              </span>
+            )}
 
-            <div className="w-full bg-neutral-900/90 border border-neutral-800 rounded-lg p-3 my-4 grid grid-cols-2 gap-3 text-left">
+            <div className="w-full bg-neutral-900/90 border border-neutral-800 rounded-lg p-3 my-4 grid grid-cols-3 gap-3 text-left">
               <div>
-                <span className="text-[10px] text-neutral-500 block uppercase font-semibold">Total Score</span>
+                <span className="text-[10px] text-neutral-500 block uppercase font-semibold">Score</span>
                 <span className="text-xl font-bold text-white">{score}</span>
               </div>
               <div>
-                <span className="text-[10px] text-neutral-500 block uppercase font-semibold">Highest Break</span>
+                <span className="text-[10px] text-neutral-500 block uppercase font-semibold">Best Break</span>
                 <span className="text-xl font-bold text-amber-400">{highestBreak}</span>
               </div>
-              <div className="col-span-2 pt-1 border-t border-neutral-800">
+              <div>
+                <span className="text-[10px] text-neutral-500 block uppercase font-semibold">All-Time Best</span>
+                <span className="text-xl font-bold text-emerald-400">{personalBest}</span>
+              </div>
+              <div className="col-span-3 pt-1 border-t border-neutral-800">
                 <span className="text-[10px] text-neutral-500 block uppercase font-semibold mb-1">Pot Sequence</span>
                 <div className="text-sm font-mono tracking-widest text-neutral-200 break-all">
                   {historyPots.length > 0 ? historyPots.join(' ') : 'None'}
