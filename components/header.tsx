@@ -75,6 +75,7 @@ export function Header() {
     { href: '/news', label: 'News' },
     { href: '/about-us', label: 'About' },
         { href: '/tools', label: 'Tools' },
+               { href: '/games', label: 'Games' },
   ]
 
   // Game pages (e.g. /games/snookong) ship their own compact, single-line
