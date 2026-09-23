@@ -72,17 +72,19 @@ export function Header() {
     { href: '/snooker', label: 'Snooker' },
     { href: '/9-ball', label: '9-Ball' },
     { href: '/rules', label: 'Rules' },
+    { href: '/games', label: 'Games' },
     { href: '/news', label: 'News' },
     { href: '/about-us', label: 'About' },
         { href: '/tools', label: 'Tools' },
-               { href: '/games', label: 'Games' },
   ]
 
-  // Game pages (e.g. /games/snookong) ship their own compact, single-line
-  // header with a Home link built in, so the full site chrome — logo, nav,
-  // floating search bar — is skipped here to keep the game feeling like its
-  // own standalone app rather than stacking two headers on top of it.
-  if (pathname?.startsWith('/games')) {
+  // Individual game pages (e.g. /games/snookong) ship their own compact,
+  // single-line header with a Home link built in, so the full site chrome —
+  // logo, nav, floating search bar — is skipped there to keep the game
+  // feeling like its own standalone app. The /games hub page itself has no
+  // header of its own, so it's deliberately excluded from this check and
+  // keeps the normal site chrome, same as /tools does.
+  if (pathname && /^\/games\/[^/]+/.test(pathname)) {
     return null
   }
 
