@@ -15,7 +15,6 @@ import {
   X, 
   Zap,
   ChevronLeft,
-  ChevronRight,
   Minus,
   Plus
 } from 'lucide-react';
@@ -25,11 +24,11 @@ const V_HEIGHT = 800;
 const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
-const CUE_SPEED = 4.6; // Calibrated speed for optimal mobile reaction
+const CUE_SPEED = 4.6; // Calibrated speed for mobile reflex response
 const OBJECT_FRICTION = 0.988; // Realistic cloth rolling friction
-const PADDLE_WIDTH = 90;
+const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
-const PADDLE_Y = 740;
+const PADDLE_Y = 730;
 const PADDLE_DEFAULT_X = 225;
 
 const SNOOKER_COLORS = {
@@ -43,7 +42,7 @@ const SNOOKER_COLORS = {
   WHITE: { name: 'Cue Ball', value: 0, hex: '#f8fafc', darkHex: '#94a3b8', specular: '#ffffff' }
 };
 
-// Spread Baulk colors slightly to guarantee a clean break channel from center
+// Baulk colors spaced to preserve a clear corridor from center
 const COLOR_SPOTS = {
   BLACK: { x: 225, y: 105 },
   PINK: { x: 225, y: 228 },
@@ -248,8 +247,8 @@ export default function SnookongGame() {
       { id: 'top-right', x: V_WIDTH - CUSHION_WIDTH - 2, y: CUSHION_WIDTH + 2 },
       { id: 'mid-left', x: CUSHION_WIDTH - 4, y: 390 },
       { id: 'mid-right', x: V_WIDTH - CUSHION_WIDTH + 4, y: 390 },
-      { id: 'bot-left', x: CUSHION_WIDTH + 2, y: 730 },
-      { id: 'bot-right', x: V_WIDTH - CUSHION_WIDTH - 2, y: 730 }
+      { id: 'bot-left', x: CUSHION_WIDTH + 4, y: 746 },
+      { id: 'bot-right', x: V_WIDTH - CUSHION_WIDTH - 4, y: 746 }
     ],
     particles: [],
     targetState: 'RED',
@@ -431,7 +430,7 @@ export default function SnookongGame() {
   };
 
   const updateAimAngle = (newOffset) => {
-    const clamped = Math.max(-50, Math.min(50, newOffset));
+    const clamped = Math.max(-45, Math.min(45, newOffset));
     setAimOffsetDeg(clamped);
     engineRef.current.aimOffsetDeg = clamped;
   };
@@ -454,7 +453,7 @@ export default function SnookongGame() {
     }
   };
 
-  // Passive fouls (wrong pots or missed targets) reset break & deduct points WITHOUT losing a life
+  // Passive fouls: deduct score and reset break, but KEEP cue ball rolling
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -463,10 +462,10 @@ export default function SnookongGame() {
     setScore(engine.score);
     setCurrentBreak(0);
     setFoulBanner({ text: reason, penalty, lostLife: false });
-    setTimeout(() => setFoulBanner(null), 2000);
+    setTimeout(() => setFoulBanner(null), 1800);
   };
 
-  // Critical fouls (drain past paddle or pocket scratch) deduct 1 life and give ball in hand
+  // Critical scratches: only on paddle drains or pocket scratches
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -479,7 +478,7 @@ export default function SnookongGame() {
     setLives(engine.lives);
 
     setFoulBanner({ text: reason, penalty: 4, lostLife: true });
-    setTimeout(() => setFoulBanner(null), 2500);
+    setTimeout(() => setFoulBanner(null), 2200);
 
     if (engine.lives <= 0) {
       engine.cueBall.active = false;
@@ -553,7 +552,7 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
         } else {
           respotBall(ball);
-          triggerFoulPenalty(`Potted ${ball.type} while on RED`, Math.max(4, SNOOKER_COLORS[ball.type].value));
+          triggerFoulPenalty(`Potted ${ball.type} on RED`, Math.max(4, SNOOKER_COLORS[ball.type].value));
         }
       } else if (engine.targetState === 'ANY_COLOR') {
         if (ball.type !== 'RED') {
@@ -571,7 +570,7 @@ export default function SnookongGame() {
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
         } else {
-          triggerFoulPenalty('Potted RED while on COLOR', 4);
+          triggerFoulPenalty('Potted RED on COLOR', 4);
         }
       }
     } else {
@@ -600,7 +599,7 @@ export default function SnookongGame() {
         }
       } else {
         respotBall(ball);
-        triggerFoulPenalty(`Wrong Ball: ${ball.type} (Expected ${expectedType})`, Math.max(4, SNOOKER_COLORS[ball.type].value));
+        triggerFoulPenalty(`Wrong Ball: ${ball.type}`, Math.max(4, SNOOKER_COLORS[ball.type].value));
       }
     }
   };
@@ -655,8 +654,7 @@ export default function SnookongGame() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fireShot]);
 
-  // Direct, isolated pointer tracking on the canvas surface only
-  const updatePaddlePositionFromPointer = (clientX) => {
+  const updatePaddlePositionFromClientX = (clientX) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -667,18 +665,18 @@ export default function SnookongGame() {
     engineRef.current.paddle.targetX = Math.max(minX, Math.min(maxX, canvasX));
   };
 
-  const handleCanvasPointerDown = (e) => {
+  const handlePointerDown = (e) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    updatePaddlePositionFromPointer(e.clientX);
+    updatePaddlePositionFromClientX(e.clientX);
   };
 
-  const handleCanvasPointerMove = (e) => {
+  const handlePointerMove = (e) => {
     if (e.buttons > 0 || e.pointerType === 'touch') {
-      updatePaddlePositionFromPointer(e.clientX);
+      updatePaddlePositionFromClientX(e.clientX);
     }
   };
 
-  const handleCanvasPointerUp = (e) => {
+  const handlePointerUp = () => {
     const engine = engineRef.current;
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
       fireShot();
@@ -696,7 +694,7 @@ export default function SnookongGame() {
       const engine = engineRef.current;
       const paddle = engine.paddle;
       const prevPaddleX = paddle.x;
-      paddle.x += (paddle.targetX - paddle.x) * 0.45;
+      paddle.x += (paddle.targetX - paddle.x) * 0.48;
       paddle.vx = paddle.x - prevPaddleX;
 
       const cue = engine.cueBall;
@@ -760,8 +758,8 @@ export default function SnookongGame() {
         }
 
         // Drain past paddle
-        if (cue.y - cue.radius > V_HEIGHT - 12) {
-          handleCriticalScratch('Cue ball drained past paddle!');
+        if (cue.y - cue.radius > V_HEIGHT - 10) {
+          handleCriticalScratch('Drained past paddle!');
         }
 
         // In-Off Pocket Scratch
@@ -772,7 +770,7 @@ export default function SnookongGame() {
             const toPocketY = pocket.y - cue.y;
             const approaching = cue.vx * toPocketX + cue.vy * toPocketY >= 0;
             if (approaching) {
-              handleCriticalScratch('In-off Pocket Scratch!');
+              handleCriticalScratch('Pocket Scratch!');
             }
           }
         });
@@ -792,16 +790,16 @@ export default function SnookongGame() {
           ball.vy = 0;
         }
 
-        // Gentle anti-clutter lift near paddle zone
-        if (ball.y > 670) {
-          ball.vy -= 0.12;
-          if (ball.y > 705) {
-            ball.y = 705;
+        // Lift balls near paddle baulk zone to prevent jams
+        if (ball.y > 665) {
+          ball.vy -= 0.14;
+          if (ball.y > 700) {
+            ball.y = 700;
             ball.vy = -Math.abs(ball.vy || 1.2);
           }
         }
 
-        // Rail Collisions
+        // Cushion Rebounds
         if (ball.x - ball.radius <= CUSHION_WIDTH) {
           ball.x = CUSHION_WIDTH + ball.radius;
           ball.vx = Math.abs(ball.vx) * 0.84;
@@ -816,8 +814,8 @@ export default function SnookongGame() {
           ball.y = CUSHION_WIDTH + ball.radius;
           ball.vy = Math.abs(ball.vy) * 0.84;
           soundRef.current.playCushionThud();
-        } else if (ball.y + ball.radius >= V_HEIGHT - CUSHION_WIDTH - 18) {
-          ball.y = V_HEIGHT - CUSHION_WIDTH - 18 - ball.radius;
+        } else if (ball.y + ball.radius >= V_HEIGHT - CUSHION_WIDTH - 14) {
+          ball.y = V_HEIGHT - CUSHION_WIDTH - 14 - ball.radius;
           ball.vy = -Math.abs(ball.vy) * 0.84;
           soundRef.current.playCushionThud();
         }
@@ -836,7 +834,7 @@ export default function SnookongGame() {
         });
       });
 
-      // Cue Ball to Object Ball Collisions (pure kinetic bounce, no life-ending collision stops)
+      // Cue Ball to Object Ball Collisions
       if (cue.active) {
         engine.balls.forEach(ball => {
           if (ball.isPotted) return;
@@ -867,7 +865,7 @@ export default function SnookongGame() {
         });
       }
 
-      // Ball to Ball Elastic Collisions
+      // Ball-to-Ball Collisions
       for (let i = 0; i < engine.balls.length; i++) {
         const b1 = engine.balls[i];
         if (b1.isPotted) continue;
@@ -905,7 +903,7 @@ export default function SnookongGame() {
         }
       }
 
-      // Particle decay
+      // Decay Particles
       for (let pIdx = engine.particles.length - 1; pIdx >= 0; pIdx--) {
         const p = engine.particles[pIdx];
         p.x += p.vx;
@@ -939,7 +937,7 @@ export default function SnookongGame() {
     ctx.fillStyle = clothGrad;
     ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH, V_WIDTH - CUSHION_WIDTH * 2, V_HEIGHT - CUSHION_WIDTH * 2);
 
-    // Beveled Cushion Shadows
+    // Cushion Edge Shadows
     ctx.fillStyle = '#064e3b';
     ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH - 6, V_WIDTH - CUSHION_WIDTH * 2, 6);
     ctx.fillRect(CUSHION_WIDTH - 6, CUSHION_WIDTH, 6, V_HEIGHT - CUSHION_WIDTH * 2);
@@ -1010,7 +1008,7 @@ export default function SnookongGame() {
     ctx.arc(paddle.x, paddle.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cue Ball Dock Aura
+    // Cue Dock Halo
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
       ctx.lineWidth = 1.5;
@@ -1049,7 +1047,7 @@ export default function SnookongGame() {
     ctx.rotate(rad);
 
     const tipDist = BALL_RADIUS + 10;
-    const cueLength = 120;
+    const cueLength = 110;
     const buttDist = tipDist + cueLength;
 
     ctx.fillStyle = '#0284c7';
@@ -1245,16 +1243,16 @@ Play on pottheblack.com/games/snookong`;
 
   return (
     <main
-      className="h-screen h-[100dvh] w-full bg-neutral-950 text-neutral-100 flex flex-col items-center justify-between p-1.5 sm:p-3 font-sans select-none overflow-hidden touch-none"
+      className="fixed inset-0 h-[100dvh] w-full bg-neutral-950 text-neutral-100 flex flex-col justify-between p-1.5 sm:p-2.5 font-sans select-none overflow-hidden touch-none"
       style={{
         paddingTop: 'max(0.35rem, env(safe-area-inset-top))',
         paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom))',
-        paddingLeft: 'max(0.5rem, env(safe-area-inset-left))',
-        paddingRight: 'max(0.5rem, env(safe-area-inset-right))'
+        paddingLeft: 'max(0.4rem, env(safe-area-inset-left))',
+        paddingRight: 'max(0.4rem, env(safe-area-inset-right))'
       }}
     >
-      {/* 1. COMPACT FIXED HEADER */}
-      <header className="w-full max-w-[420px] flex items-center justify-between py-1 px-1 text-xs border-b border-neutral-800/80 shrink-0">
+      {/* 1. TOP HEADER */}
+      <header className="w-full max-w-[420px] mx-auto flex items-center justify-between py-0.5 px-1 text-xs border-b border-neutral-800/80 shrink-0">
         <div className="flex items-center space-x-2">
           <Link
             href="/"
@@ -1264,11 +1262,9 @@ Play on pottheblack.com/games/snookong`;
             <span className="font-semibold text-[11px]">Home</span>
           </Link>
           <span className="text-neutral-700">|</span>
-          <div className="flex items-center space-x-1.5">
-            <span className="font-bold tracking-wider text-neutral-200 uppercase text-[11px]">
-              Snookong
-            </span>
-          </div>
+          <span className="font-bold tracking-wider text-neutral-200 uppercase text-[11px]">
+            Snookong
+          </span>
         </div>
         <div className="flex items-center space-x-1.5">
           {personalBest > 0 && (
@@ -1279,21 +1275,21 @@ Play on pottheblack.com/games/snookong`;
           )}
           <button 
             onClick={toggleSound}
-            className="p-1 rounded text-neutral-400 hover:text-neutral-100 transition-colors"
+            className="p-1 rounded text-neutral-400 hover:text-neutral-100"
             title="Toggle Sound"
           >
             {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
           <button 
             onClick={() => setShowRulesModal(true)}
-            className="p-1 rounded text-neutral-400 hover:text-neutral-100 transition-colors"
+            className="p-1 rounded text-neutral-400 hover:text-neutral-100"
             title="How to Play"
           >
             <HelpCircle size={15} />
           </button>
           <button 
             onClick={restartGame}
-            className="p-1 rounded text-neutral-400 hover:text-neutral-100 transition-colors"
+            className="p-1 rounded text-neutral-400 hover:text-neutral-100"
             title="Reset Game"
           >
             <RotateCcw size={15} />
@@ -1301,8 +1297,8 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </header>
 
-      {/* 2. COMPACT DUAL-STRIP HUD */}
-      <div className="w-full max-w-[420px] flex flex-col space-y-1 my-1 shrink-0">
+      {/* 2. COMPACT DUAL STRIP HUD */}
+      <div className="w-full max-w-[420px] mx-auto flex flex-col space-y-1 my-0.5 shrink-0">
         <div className="grid grid-cols-4 gap-1.5 text-center">
           <div className="bg-neutral-900/90 border border-neutral-800 rounded-md p-1 shadow-inner">
             <div className="text-[9px] uppercase text-neutral-400 font-semibold">Score</div>
@@ -1331,7 +1327,7 @@ Play on pottheblack.com/games/snookong`;
               {[...Array(3)].map((_, i) => (
                 <span 
                   key={i} 
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 text-[8px] flex items-center justify-center ${
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${
                     i < lives 
                       ? 'bg-white shadow-[0_0_6px_#ffffff]' 
                       : 'bg-neutral-800 border border-neutral-700'
@@ -1349,22 +1345,22 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* 3. DYNAMIC CANVAS WRAPPER (Auto-fits viewport height) */}
-      <div className="relative flex-1 min-h-0 w-full flex items-center justify-center my-0.5">
-        <div className="relative h-full max-h-full aspect-[9/16] rounded-lg overflow-hidden shadow-2xl border-2 border-neutral-800 bg-black">
+      {/* 3. DYNAMIC CANVAS WRAPPER (Auto-fits vertical viewport with ZERO overflow) */}
+      <div className="relative flex-1 min-h-0 w-full flex items-center justify-center my-0.5 overflow-hidden">
+        <div className="relative h-full max-h-full aspect-[9/16] rounded-lg overflow-hidden shadow-2xl border border-neutral-800 bg-black flex items-center justify-center">
           <canvas
             ref={canvasRef}
             width={V_WIDTH}
             height={V_HEIGHT}
-            onPointerDown={handleCanvasPointerDown}
-            onPointerMove={handleCanvasPointerMove}
-            onPointerUp={handleCanvasPointerUp}
-            className="w-full h-full block cursor-crosshair touch-none"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="w-full h-full object-contain block cursor-crosshair touch-none"
           />
 
           {foulBanner && (
-            <div className="absolute top-10 left-3 right-3 bg-rose-950/95 border border-rose-500 text-rose-200 px-2 py-1.5 rounded-lg text-center text-xs font-bold shadow-2xl backdrop-blur-md flex items-center justify-center space-x-1.5 z-20">
-              <ShieldAlert size={15} className="text-rose-400 shrink-0" />
+            <div className="absolute top-8 left-3 right-3 bg-rose-950/95 border border-rose-500 text-rose-200 px-2 py-1.5 rounded-lg text-center text-xs font-bold shadow-2xl backdrop-blur-md flex items-center justify-center space-x-1.5 z-20">
+              <ShieldAlert size={14} className="text-rose-400 shrink-0" />
               <div>
                 <span>{foulBanner.text}</span>
                 <span className="block text-[9px] text-rose-300 font-normal">
@@ -1433,95 +1429,58 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* 4. COMPACT INLINE CONTROLS (Zero page scroll) */}
-      {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND') && (
-        <div className="w-full max-w-[420px] bg-neutral-900/95 border border-neutral-800 rounded-lg p-2 shadow-2xl flex flex-col space-y-1.5 shrink-0 backdrop-blur-md">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              {gameState === 'BREAK_AIM' ? 'Aim Break' : 'Ball in Hand'}
-            </span>
-            <span className="font-mono text-amber-400 text-[10px] bg-black/60 px-1.5 py-0.5 rounded border border-neutral-800">
-              Angle: {aimOffsetDeg > 0 ? `+${aimOffsetDeg}°` : `${aimOffsetDeg}°`}
-            </span>
-          </div>
+      {/* 4. PERSISTENT FIXED-HEIGHT DOCK (Eliminates layout jumps) */}
+      <footer className="w-full max-w-[420px] mx-auto h-14 bg-neutral-900/95 border border-neutral-800 rounded-lg px-2 flex items-center justify-between shrink-0 shadow-xl backdrop-blur-md">
+        {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND') ? (
+          <div className="w-full flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => updateAimAngle(aimOffsetDeg - 5)}
+                className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
+                title="-5°"
+              >
+                <Minus size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => updateAimAngle(0)}
+                className="px-2 h-9 bg-neutral-800 hover:bg-neutral-700 text-amber-300 rounded font-mono text-[11px] font-bold border border-neutral-700 min-w-[42px] text-center"
+              >
+                {aimOffsetDeg > 0 ? `+${aimOffsetDeg}°` : `${aimOffsetDeg}°`}
+              </button>
+              <button
+                type="button"
+                onClick={() => updateAimAngle(aimOffsetDeg + 5)}
+                className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
+                title="+5°"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
 
-          <div className="grid grid-cols-5 gap-1 text-[11px]">
             <button
               type="button"
-              onClick={() => updateAimAngle(aimOffsetDeg - 5)}
-              className="py-1 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
+              onClick={fireShot}
+              className="flex-1 h-9 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 active:scale-98 text-neutral-950 font-black text-xs tracking-wider rounded-md shadow-md shadow-emerald-500/20 flex items-center justify-center space-x-1.5"
             >
-              <Minus size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateAimAngle(-20)}
-              className={`py-1 rounded font-semibold transition-all border ${
-                aimOffsetDeg === -20 ? 'bg-amber-500/20 text-amber-300 border-amber-500' : 'bg-neutral-800 text-neutral-300 border-neutral-700'
-              }`}
-            >
-              -20°
-            </button>
-            <button
-              type="button"
-              onClick={() => updateAimAngle(0)}
-              className={`py-1 rounded font-semibold transition-all border ${
-                aimOffsetDeg === 0 ? 'bg-amber-500/20 text-amber-300 border-amber-500' : 'bg-neutral-800 text-neutral-300 border-neutral-700'
-              }`}
-            >
-              0°
-            </button>
-            <button
-              type="button"
-              onClick={() => updateAimAngle(20)}
-              className={`py-1 rounded font-semibold transition-all border ${
-                aimOffsetDeg === 20 ? 'bg-amber-500/20 text-amber-300 border-amber-500' : 'bg-neutral-800 text-neutral-300 border-neutral-700'
-              }`}
-            >
-              +20°
-            </button>
-            <button
-              type="button"
-              onClick={() => updateAimAngle(aimOffsetDeg + 5)}
-              className="py-1 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-            >
-              <Plus size={12} />
+              <Zap size={14} className="fill-neutral-950" />
+              <span>{gameState === 'BREAK_AIM' ? 'FIRE BREAK' : 'STRIKE CUE'}</span>
+              <span className="text-[9px] bg-neutral-950/20 px-1 py-0.5 rounded font-bold">
+                TAP FELT
+              </span>
             </button>
           </div>
-
-          <div className="flex items-center space-x-2">
-            <input 
-              type="range"
-              min="-45"
-              max="45"
-              step="1"
-              value={aimOffsetDeg}
-              onChange={(e) => updateAimAngle(Number(e.target.value))}
-              className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={fireShot}
-            className="w-full py-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 text-neutral-950 font-black text-xs tracking-wider rounded-md shadow-md shadow-emerald-500/20 flex items-center justify-center space-x-1.5 transition-transform active:scale-98"
-          >
-            <Zap size={14} className="fill-neutral-950" />
-            <span>{gameState === 'BREAK_AIM' ? 'FIRE BREAK SHOT' : 'STRIKE CUE BALL'}</span>
-            <span className="text-[9px] bg-neutral-950/20 px-1 py-0.2 rounded font-bold ml-1">
-              TAP TABLE / SPACE
+        ) : (
+          <div className="w-full flex items-center justify-between px-2 text-[11px] text-neutral-400">
+            <span className="flex items-center gap-1.5 text-neutral-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Drag felt to steer paddle
             </span>
-          </button>
-        </div>
-      )}
-
-      {gameState === 'PLAYING' && (
-        <div className="w-full max-w-[420px] flex items-center justify-between px-1 py-1 text-[10px] text-neutral-400 shrink-0">
-          <span>Slide finger on table to steer paddle</span>
-          <span className="text-neutral-500">Outer edges cut sharp angles</span>
-        </div>
-      )}
+            <span className="text-neutral-500 text-[10px]">Edges cut steep spin</span>
+          </div>
+        )}
+      </footer>
 
       {/* Rules Modal */}
       {showRulesModal && (
@@ -1540,19 +1499,19 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Aim & Break:</strong> Adjust your angle with the buttons or slider, then tap <em>FIRE</em> or tap directly on the baize to strike the rack.
+                <strong className="text-amber-400">Aim & Break:</strong> Adjust aim with <code className="text-amber-300">[-5°]</code> / <code className="text-amber-300">[+5°]</code> or slide the paddle. Tap <em>FIRE BREAK</em> or tap anywhere on the felt to launch!
               </li>
               <li>
-                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain.
+                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
               </li>
               <li>
-                <strong className="text-white">Lives & Scratches:</strong> You have 3 lives. Lives are <strong>only lost</strong> if the cue ball drains past your paddle or scratches in-off into a pocket.
+                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
               </li>
               <li>
-                <strong className="text-emerald-400">Fouls:</strong> Potting the wrong ball deducts penalty points and resets your current break, but keeps the action rolling!
+                <strong className="text-emerald-400">Fouls:</strong> Potting an illegal ball resets your current break and deducts points, but the rally keeps going.
               </li>
               <li>
-                <strong className="text-amber-400">Endgame Clearance:</strong> Once all 10 reds are potted, clear the 6 colors in strict regulation order: Yellow → Green → Brown → Blue → Pink → Black.
+                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
               </li>
             </ul>
 
