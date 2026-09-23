@@ -25,8 +25,8 @@ const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
 const CUE_SPEED = 4.6;
-// Adjusted from 0.988 to 0.9908 to increase roll distance by ~30%
-const OBJECT_FRICTION = 0.9908;
+const OBJECT_FRICTION = 0.9908; // Calibrated for +30% longer roll
+const MIN_VERTICAL_VELOCITY = 1.05; // Prevents horizontal ping-pong loops
 const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
@@ -335,6 +335,7 @@ export default function SnookongGame() {
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
     aimOffsetDeg: 0,
+    consecutiveSideBounces: 0, // Anti-loop tracking
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -474,6 +475,7 @@ export default function SnookongGame() {
     };
     engine.gameState = 'BREAK_AIM';
     engine.aimOffsetDeg = 0;
+    engine.consecutiveSideBounces = 0;
     engine.targetState = 'RED';
     engine.clearanceIndex = 0;
     engine.redsRemaining = 10;
@@ -507,6 +509,7 @@ export default function SnookongGame() {
     engine.cueBall.active = true;
     engine.cueBall.potted = false;
     engine.cueBall.scale = 1.0;
+    engine.consecutiveSideBounces = 0;
 
     if (engine.gameState === 'BREAK_AIM') {
       soundRef.current.playBreakExplosion();
@@ -565,7 +568,6 @@ export default function SnookongGame() {
     }
   };
 
-  // Passive fouls: deduct score and reset break; return target to RED if reds remain
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -583,13 +585,13 @@ export default function SnookongGame() {
     setTimeout(() => setFoulBanner(null), 1800);
   };
 
-  // Critical scratches: paddle drains or pocket scratches; return target to RED if reds remain
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - 4);
     engine.currentBreak = 0;
     engine.lives -= 1;
+    engine.consecutiveSideBounces = 0;
 
     if (engine.redsRemaining > 0) {
       engine.targetState = 'RED';
@@ -863,29 +865,53 @@ export default function SnookongGame() {
         cue.vy = 0;
         cue.active = false;
       } else if (cue.active) {
+        // Enforce anti-horizontal loop safeguard (minimum vertical velocity floor)
+        if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
+          const dir = cue.vy >= 0 ? 1 : -1;
+          cue.vy = dir * MIN_VERTICAL_VELOCITY;
+        }
+
         cue.x += cue.vx;
         cue.y += cue.vy;
 
+        // Preserve calibrated constant cue speed
         const speed = Math.hypot(cue.vx, cue.vy);
         if (speed > 0.001) {
           cue.vx = (cue.vx / speed) * CUE_SPEED;
           cue.vy = (cue.vy / speed) * CUE_SPEED;
         }
 
-        // Cushion Rebounds
+        // Left Cushion Rebound
         if (cue.x - cue.radius <= CUSHION_WIDTH) {
           cue.x = CUSHION_WIDTH + cue.radius;
           cue.vx = Math.abs(cue.vx);
+          engine.consecutiveSideBounces += 1;
+
+          // Break loop: if 2+ consecutive side bounces occur or angle is flat, tilt downward/upward
+          if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
+            const tilt = cue.y < 420 ? 1.5 : -1.5;
+            cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
+          }
           soundRef.current.playCushionThud();
-        } else if (cue.x + cue.radius >= V_WIDTH - CUSHION_WIDTH) {
+        } 
+        // Right Cushion Rebound
+        else if (cue.x + cue.radius >= V_WIDTH - CUSHION_WIDTH) {
           cue.x = V_WIDTH - CUSHION_WIDTH - cue.radius;
           cue.vx = -Math.abs(cue.vx);
+          engine.consecutiveSideBounces += 1;
+
+          if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
+            const tilt = cue.y < 420 ? 1.5 : -1.5;
+            cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
+          }
           soundRef.current.playCushionThud();
         }
 
+        // Top Cushion Rebound
         if (cue.y - cue.radius <= CUSHION_WIDTH) {
           cue.y = CUSHION_WIDTH + cue.radius;
           cue.vy = Math.abs(cue.vy);
+          engine.consecutiveSideBounces = 0;
           soundRef.current.playCushionThud();
         }
 
@@ -903,6 +929,8 @@ export default function SnookongGame() {
           cue.x <= paddleRight + 6
         ) {
           cue.y = paddleTop - cue.radius;
+          engine.consecutiveSideBounces = 0;
+
           const hitOffset = (cue.x - paddle.x) / (paddle.width / 2);
           const maxBounceAngle = (64 * Math.PI) / 180;
           const bounceAngle = hitOffset * maxBounceAngle - Math.PI / 2;
@@ -933,7 +961,7 @@ export default function SnookongGame() {
         });
       }
 
-      // Object Balls Movement & Calibrated Friction (+30% roll distance)
+      // Object Balls Movement & Friction
       engine.balls.forEach(ball => {
         if (ball.isPotted) return;
 
@@ -942,7 +970,6 @@ export default function SnookongGame() {
         ball.vx *= OBJECT_FRICTION;
         ball.vy *= OBJECT_FRICTION;
 
-        // Smooth coast to a stop without premature snapping
         if (Math.hypot(ball.vx, ball.vy) < 0.025) {
           ball.vx = 0;
           ball.vy = 0;
@@ -998,6 +1025,8 @@ export default function SnookongGame() {
           const dist = Math.hypot(dx, dy);
 
           if (dist < cue.radius + ball.radius && dist > 0) {
+            engine.consecutiveSideBounces = 0; // Reset loop counter on ball hit
+
             const nx = dx / dist;
             const ny = dy / dist;
             const overlap = (cue.radius + ball.radius) - dist;
@@ -1014,6 +1043,11 @@ export default function SnookongGame() {
             cue.vy -= p * ny;
             ball.vx += p * nx;
             ball.vy += p * ny;
+
+            // Prevent collision from dampening vertical velocity to dead-zero
+            if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
+              cue.vy = (cue.vy >= 0 ? 1 : -1) * MIN_VERTICAL_VELOCITY;
+            }
 
             soundRef.current.playBallClick(Math.min(1.2, Math.hypot(ball.vx, ball.vy) / 3.0));
           }
@@ -1665,19 +1699,19 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
+                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike[cite: 2].
               </li>
               <li>
-                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
+                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize[cite: 2].
               </li>
               <li>
-                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
+                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket[cite: 2].
               </li>
               <li>
                 <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong>.
               </li>
               <li>
-                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
+                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black[cite: 2].
               </li>
             </ul>
 
