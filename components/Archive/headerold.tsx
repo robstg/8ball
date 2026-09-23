@@ -77,14 +77,6 @@ export function Header() {
         { href: '/tools', label: 'Tools' },
   ]
 
-  // Game pages (e.g. /games/snookong) ship their own compact, single-line
-  // header with a Home link built in, so the full site chrome — logo, nav,
-  // floating search bar — is skipped here to keep the game feeling like its
-  // own standalone app rather than stacking two headers on top of it.
-  if (pathname?.startsWith('/games')) {
-    return null
-  }
-
   return (
     <header className="w-full z-50 font-sans sticky top-0">
       <div 
