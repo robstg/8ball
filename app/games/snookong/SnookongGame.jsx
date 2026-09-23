@@ -24,12 +24,13 @@ const V_HEIGHT = 800;
 const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
-const CUE_SPEED = 4.6; // Calibrated speed for mobile reflex response
-const OBJECT_FRICTION = 0.988; // Cloth rolling friction
+const CUE_SPEED = 4.6;
+const OBJECT_FRICTION = 0.988;
 const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
 const PADDLE_DEFAULT_X = 225;
+const KEYBOARD_PADDLE_SPEED = 8.5; // Smooth 60fps keyboard movement
 
 const SNOOKER_COLORS = {
   RED: { name: 'Red', value: 1, hex: '#e11d48', darkHex: '#881337', specular: '#fda4af' },
@@ -42,7 +43,6 @@ const SNOOKER_COLORS = {
   WHITE: { name: 'Cue Ball', value: 0, hex: '#f8fafc', darkHex: '#94a3b8', specular: '#ffffff' }
 };
 
-// Baulk colors spaced to preserve a clear corridor from center
 const COLOR_SPOTS = {
   BLACK: { x: 225, y: 105 },
   PINK: { x: 225, y: 228 },
@@ -54,30 +54,68 @@ const COLOR_SPOTS = {
 
 const CLEARANCE_SEQUENCE = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
-class SoundEngine {
+class RealisticSoundEngine {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.noiseBuffer = null;
   }
 
   init() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+        this.generateNoiseBuffer();
+      }
     }
   }
 
+  generateNoiseBuffer() {
+    if (!this.ctx) return;
+    const bufferSize = this.ctx.sampleRate * 0.5;
+    this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const output = this.noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+  }
+
+  // Realistic Leather tip contact + Ash Shaft Vibration
   playCueClack() {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
+
+      // 1. Leather Tip Noise Click
+      if (this.noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2600, now);
+        filter.Q.setValueAtTime(3.0, now);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.3, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.02);
+      }
+
+      // 2. Ash Shaft Knock
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1400, now);
-      osc.frequency.exponentialRampToValueAtTime(320, now + 0.04);
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.frequency.setValueAtTime(540, now);
+      osc.frequency.exponentialRampToValueAtTime(210, now + 0.038);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
+
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
@@ -85,80 +123,168 @@ class SoundEngine {
     } catch (e) {}
   }
 
+  // Authentic Phenolic Resin Impact (Aramith Ball Collision)
   playBallClick(intensity = 1.0) {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      const vol = Math.min(0.45, Math.max(0.08, 0.32 * intensity));
-      osc.frequency.setValueAtTime(2600, now);
-      osc.frequency.exponentialRampToValueAtTime(750, now + 0.035);
-      gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.035);
+      const vol = Math.min(0.55, Math.max(0.12, 0.42 * intensity));
+
+      // Layer 1: Instant sharp ceramic ping (4,600 Hz -> 3,200 Hz)
+      const pingOsc = this.ctx.createOscillator();
+      const pingGain = this.ctx.createGain();
+      pingOsc.type = 'sine';
+      pingOsc.frequency.setValueAtTime(4600, now);
+      pingOsc.frequency.exponentialRampToValueAtTime(3100, now + 0.016);
+      pingGain.gain.setValueAtTime(vol * 0.85, now);
+      pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.016);
+      pingOsc.connect(pingGain);
+      pingGain.connect(this.ctx.destination);
+      pingOsc.start(now);
+      pingOsc.stop(now + 0.018);
+
+      // Layer 2: Hollow ball resonance (1,420 Hz body ring)
+      const bodyOsc = this.ctx.createOscillator();
+      const bodyGain = this.ctx.createGain();
+      bodyOsc.type = 'triangle';
+      bodyOsc.frequency.setValueAtTime(1420, now);
+      bodyOsc.frequency.exponentialRampToValueAtTime(850, now + 0.028);
+      bodyGain.gain.setValueAtTime(vol * 0.6, now);
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+      bodyOsc.connect(bodyGain);
+      bodyGain.connect(this.ctx.destination);
+      bodyOsc.start(now);
+      bodyOsc.stop(now + 0.03);
+
+      // Layer 3: Surface chalk friction transient
+      if (this.noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(4000, now);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(vol * 0.25, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.01);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.012);
+      }
     } catch (e) {}
   }
 
+  // Damped Rubber Cushion Thud (muffled bounce with low-pass absorption)
   playCushionThud() {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
+
+      // 1. Rubber absorption sub-thud
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.frequency.setValueAtTime(115, now);
+      osc.frequency.exponentialRampToValueAtTime(48, now + 0.075);
+      gain.gain.setValueAtTime(0.32, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
       osc.stop(now + 0.08);
+
+      // 2. Cloth felt dampening
+      if (this.noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(240, now);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.2, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.04);
+      }
     } catch (e) {}
   }
 
+  // Leather Pocket Drop + Basket Settle
   playPocketDrop(colorValue = 1) {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
+
+      // 1. Drop thump into leather pocket
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      const baseFreq = 220 + colorValue * 30;
+      const baseFreq = 160 + colorValue * 15;
       osc.frequency.setValueAtTime(baseFreq, now);
-      osc.frequency.exponentialRampToValueAtTime(55, now + 0.22);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.16);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.22);
+      osc.stop(now + 0.17);
+
+      // 2. Pocket basket settling click
+      setTimeout(() => {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const t = this.ctx.currentTime;
+          const osc2 = this.ctx.createOscillator();
+          const gain2 = this.ctx.createGain();
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(800, t);
+          osc2.frequency.exponentialRampToValueAtTime(200, t + 0.03);
+          gain2.gain.setValueAtTime(0.18, t);
+          gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+          osc2.connect(gain2);
+          gain2.connect(this.ctx.destination);
+          osc2.start(t);
+          osc2.stop(t + 0.035);
+        } catch (err) {}
+      }, 75);
     } catch (e) {}
   }
 
+  // Cluster Break: Initial primary smash + rapid cluster scatter micro-clicks
   playBreakExplosion() {
     if (!this.enabled || !this.ctx) return;
     try {
-      const now = this.ctx.currentTime;
-      [2200, 1600, 1100].forEach((freq, idx) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        const startT = now + idx * 0.015;
-        osc.frequency.setValueAtTime(freq, startT);
-        osc.frequency.exponentialRampToValueAtTime(450, startT + 0.07);
-        gain.gain.setValueAtTime(0.35, startT);
-        gain.gain.exponentialRampToValueAtTime(0.001, startT + 0.07);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(startT);
-        osc.stop(startT + 0.07);
+      // Primary solid strike
+      this.playBallClick(1.4);
+
+      // Rapid ricochet cluster clicks
+      [0.015, 0.032, 0.055].forEach((delay, idx) => {
+        setTimeout(() => {
+          this.playBallClick(1.0 - idx * 0.25);
+        }, delay * 1000);
       });
+
+      // Low end cluster boom
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.18);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.2);
     } catch (e) {}
   }
 
@@ -171,7 +297,7 @@ class SoundEngine {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(140, now);
       osc.frequency.setValueAtTime(90, now + 0.14);
-      gain.gain.setValueAtTime(0.32, now);
+      gain.gain.setValueAtTime(0.3, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
@@ -202,7 +328,7 @@ class SoundEngine {
 
 export default function SnookongGame() {
   const canvasRef = useRef(null);
-  const soundRef = useRef(new SoundEngine());
+  const soundRef = useRef(new RealisticSoundEngine());
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [score, setScore] = useState(0);
@@ -219,6 +345,9 @@ export default function SnookongGame() {
   const [personalBest, setPersonalBest] = useState(0);
   const [isNewBest, setIsNewBest] = useState(false);
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
+
+  // Tracks active PC keyboard keys for smooth 60fps movement
+  const keysPressed = useRef({ left: false, right: false });
 
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
@@ -266,7 +395,7 @@ export default function SnookongGame() {
     const engine = engineRef.current;
     const balls = [];
 
-    // 1. Official 6 Colors on designated spots
+    // Official 6 Colors on spots
     Object.entries(COLOR_SPOTS).forEach(([colorKey, spot]) => {
       balls.push({
         id: colorKey.toLowerCase(),
@@ -283,7 +412,7 @@ export default function SnookongGame() {
       });
     });
 
-    // 2. 10 Reds Pyramid (4-3-2-1 formation)
+    // 10 Reds Pyramid (4-3-2-1 formation)
     const rDist = BALL_RADIUS * 2.05;
     const rowOffset = rDist * 0.866;
     const startX = 225;
@@ -404,7 +533,6 @@ export default function SnookongGame() {
       engine.isBreakShot = false;
     }
 
-    // Immediately transitions to PLAYING - cue stick vanishes
     engine.gameState = 'PLAYING';
     setGameState('PLAYING');
   }, []);
@@ -636,21 +764,46 @@ export default function SnookongGame() {
     }
   }, [score, personalBest]);
 
+  // Robust PC Keyboard Handling (Arrow Keys & WASD)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space') {
         e.preventDefault();
         fireShot();
-      } else if (e.code === 'ArrowLeft') {
+      } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         e.preventDefault();
-        updateAimAngle(engineRef.current.aimOffsetDeg - 5);
-      } else if (e.code === 'ArrowRight') {
+        keysPressed.current.left = true;
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         e.preventDefault();
-        updateAimAngle(engineRef.current.aimOffsetDeg + 5);
+        keysPressed.current.right = true;
+      } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+        // Aim angle adjustments during setup states
+        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND') {
+          e.preventDefault();
+          updateAimAngle(engineRef.current.aimOffsetDeg + 5);
+        }
+      } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND') {
+          e.preventDefault();
+          updateAimAngle(engineRef.current.aimOffsetDeg - 5);
+        }
       }
     };
+
+    const handleKeyUp = (e) => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        keysPressed.current.left = false;
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        keysPressed.current.right = false;
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, [fireShot]);
 
   const updatePaddlePositionFromClientX = (clientX) => {
@@ -692,6 +845,17 @@ export default function SnookongGame() {
     const runPhysicsLoop = () => {
       const engine = engineRef.current;
       const paddle = engine.paddle;
+
+      // Handle Smooth PC Keyboard Paddle Movement
+      const minX = CUSHION_WIDTH + paddle.width / 2;
+      const maxX = V_WIDTH - CUSHION_WIDTH - paddle.width / 2;
+      if (keysPressed.current.left) {
+        paddle.targetX = Math.max(minX, paddle.targetX - KEYBOARD_PADDLE_SPEED);
+      }
+      if (keysPressed.current.right) {
+        paddle.targetX = Math.min(maxX, paddle.targetX + KEYBOARD_PADDLE_SPEED);
+      }
+
       const prevPaddleX = paddle.x;
       paddle.x += (paddle.targetX - paddle.x) * 0.48;
       paddle.vx = paddle.x - prevPaddleX;
@@ -789,7 +953,6 @@ export default function SnookongGame() {
           ball.vy = 0;
         }
 
-        // Lift balls near paddle baulk zone to prevent jams
         if (ball.y > 665) {
           ball.vy -= 0.14;
           if (ball.y > 700) {
@@ -798,7 +961,6 @@ export default function SnookongGame() {
           }
         }
 
-        // Cushion Rebounds
         if (ball.x - ball.radius <= CUSHION_WIDTH) {
           ball.x = CUSHION_WIDTH + ball.radius;
           ball.vx = Math.abs(ball.vx) * 0.84;
@@ -819,7 +981,6 @@ export default function SnookongGame() {
           soundRef.current.playCushionThud();
         }
 
-        // Pocket Drops
         engine.pockets.forEach(pocket => {
           const dist = Math.hypot(ball.x - pocket.x, ball.y - pocket.y);
           if (dist < POCKET_RADIUS) {
@@ -859,7 +1020,7 @@ export default function SnookongGame() {
             ball.vx += p * nx;
             ball.vy += p * ny;
 
-            soundRef.current.playBallClick(Math.min(1.0, Math.hypot(ball.vx, ball.vy) / 3.5));
+            soundRef.current.playBallClick(Math.min(1.2, Math.hypot(ball.vx, ball.vy) / 3.0));
           }
         });
       }
@@ -895,8 +1056,8 @@ export default function SnookongGame() {
             b2.vx += p * nx * 0.94;
             b2.vy += p * ny * 0.94;
 
-            if (Math.abs(p) > 0.35) {
-              soundRef.current.playBallClick(Math.min(1.0, Math.abs(p) / 3.5));
+            if (Math.abs(p) > 0.3) {
+              soundRef.current.playBallClick(Math.min(1.2, Math.abs(p) / 3.0));
             }
           }
         }
@@ -1044,17 +1205,16 @@ export default function SnookongGame() {
     }
   };
 
-  // Renders the cue stick strictly VERTICAL behind the cue ball, extending downwards
   const drawAuthenticCueStick = (ctx, ballX, ballY, angleRad) => {
     ctx.save();
     ctx.translate(ballX, ballY);
-    ctx.rotate(angleRad); // 0 rad = vertically aligned along +Y
+    ctx.rotate(angleRad);
 
     const tipDist = BALL_RADIUS + 4;
     const shaftLen = 65;
     const buttLen = 45;
 
-    // 1. Blue Chalked Tip (facing ball)
+    // 1. Blue Chalked Tip
     ctx.fillStyle = '#0284c7';
     ctx.beginPath();
     ctx.roundRect(-2.2, tipDist, 4.4, 3, 1);
@@ -1080,7 +1240,7 @@ export default function SnookongGame() {
     ctx.closePath();
     ctx.fill();
 
-    // 4. Ebony Butt with Splice
+    // 4. Ebony Butt
     const buttStart = shaftStart + shaftLen;
     const buttGrad = ctx.createLinearGradient(-5, buttStart, 5, buttStart);
     buttGrad.addColorStop(0, '#18181b');
@@ -1096,7 +1256,7 @@ export default function SnookongGame() {
     ctx.closePath();
     ctx.fill();
 
-    // 5. Rubber Bumper at the bottom
+    // 5. Rubber Bumper
     ctx.fillStyle = '#52525b';
     ctx.beginPath();
     ctx.roundRect(-4.8, buttStart + buttLen, 9.6, 4, 1.5);
@@ -1356,7 +1516,7 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* 3. DYNAMIC CANVAS WRAPPER (Auto-fits vertical viewport with ZERO overflow) */}
+      {/* 3. DYNAMIC CANVAS WRAPPER */}
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center my-0.5 overflow-hidden">
         <div className="relative h-full max-h-full aspect-[9/16] rounded-lg overflow-hidden shadow-2xl border border-neutral-800 bg-black flex items-center justify-center">
           <canvas
@@ -1440,7 +1600,7 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* 4. PERSISTENT FIXED-HEIGHT DOCK (Eliminates layout jumps) */}
+      {/* 4. PERSISTENT FIXED-HEIGHT DOCK */}
       <footer className="w-full max-w-[420px] mx-auto h-14 bg-neutral-900/95 border border-neutral-800 rounded-lg px-2 flex items-center justify-between shrink-0 shadow-xl backdrop-blur-md">
         {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND') ? (
           <div className="w-full flex items-center space-x-2">
@@ -1449,7 +1609,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg - 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="-5°"
+                title="-5° (Down Arrow)"
               >
                 <Minus size={13} />
               </button>
@@ -1464,7 +1624,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg + 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="+5°"
+                title="+5° (Up Arrow)"
               >
                 <Plus size={13} />
               </button>
@@ -1478,7 +1638,7 @@ Play on pottheblack.com/games/snookong`;
               <Zap size={14} className="fill-neutral-950" />
               <span>{gameState === 'BREAK_AIM' ? 'FIRE BREAK' : 'STRIKE CUE'}</span>
               <span className="text-[9px] bg-neutral-950/20 px-1 py-0.5 rounded font-bold">
-                TAP FELT
+                SPACE / TAP
               </span>
             </button>
           </div>
@@ -1486,7 +1646,7 @@ Play on pottheblack.com/games/snookong`;
           <div className="w-full flex items-center justify-between px-2 text-[11px] text-neutral-400">
             <span className="flex items-center gap-1.5 text-neutral-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Drag felt to steer paddle
+              Arrow Keys / Drag to steer
             </span>
             <span className="text-neutral-500 text-[10px]">Edges cut steep spin</span>
           </div>
@@ -1510,7 +1670,7 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Aim & Break:</strong> Adjust aim with <code className="text-amber-300">[-5°]</code> / <code className="text-amber-300">[+5°]</code> or slide the paddle. Tap <em>FIRE BREAK</em> or tap anywhere on the felt to launch!
+                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> to tweak aim. Press <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
                 <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
