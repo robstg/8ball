@@ -81,13 +81,11 @@ class RealisticSoundEngine {
     }
   }
 
-  // Realistic Leather tip contact + Ash Shaft Vibration
   playCueClack() {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
 
-      // 1. Leather Tip Noise Click
       if (this.noiseBuffer) {
         const noise = this.ctx.createBufferSource();
         noise.buffer = this.noiseBuffer;
@@ -107,7 +105,6 @@ class RealisticSoundEngine {
         noise.stop(now + 0.02);
       }
 
-      // 2. Ash Shaft Knock
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
@@ -123,14 +120,12 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Authentic Phenolic Resin Impact (Aramith Ball Collision)
   playBallClick(intensity = 1.0) {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const vol = Math.min(0.55, Math.max(0.12, 0.42 * intensity));
 
-      // Layer 1: Instant sharp ceramic ping (4,600 Hz -> 3,200 Hz)
       const pingOsc = this.ctx.createOscillator();
       const pingGain = this.ctx.createGain();
       pingOsc.type = 'sine';
@@ -143,7 +138,6 @@ class RealisticSoundEngine {
       pingOsc.start(now);
       pingOsc.stop(now + 0.018);
 
-      // Layer 2: Hollow ball resonance (1,420 Hz body ring)
       const bodyOsc = this.ctx.createOscillator();
       const bodyGain = this.ctx.createGain();
       bodyOsc.type = 'triangle';
@@ -156,7 +150,6 @@ class RealisticSoundEngine {
       bodyOsc.start(now);
       bodyOsc.stop(now + 0.03);
 
-      // Layer 3: Surface chalk friction transient
       if (this.noiseBuffer) {
         const noise = this.ctx.createBufferSource();
         noise.buffer = this.noiseBuffer;
@@ -177,13 +170,11 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Damped Rubber Cushion Thud (muffled bounce with low-pass absorption)
   playCushionThud() {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
 
-      // 1. Rubber absorption sub-thud
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
@@ -196,7 +187,6 @@ class RealisticSoundEngine {
       osc.start(now);
       osc.stop(now + 0.08);
 
-      // 2. Cloth felt dampening
       if (this.noiseBuffer) {
         const noise = this.ctx.createBufferSource();
         noise.buffer = this.noiseBuffer;
@@ -217,13 +207,11 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Leather Pocket Drop + Basket Settle
   playPocketDrop(colorValue = 1) {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
 
-      // 1. Drop thump into leather pocket
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
@@ -237,7 +225,6 @@ class RealisticSoundEngine {
       osc.start(now);
       osc.stop(now + 0.17);
 
-      // 2. Pocket basket settling click
       setTimeout(() => {
         if (!this.enabled || !this.ctx) return;
         try {
@@ -258,21 +245,17 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Cluster Break: Initial primary smash + rapid cluster scatter micro-clicks
   playBreakExplosion() {
     if (!this.enabled || !this.ctx) return;
     try {
-      // Primary solid strike
       this.playBallClick(1.4);
 
-      // Rapid ricochet cluster clicks
       [0.015, 0.032, 0.055].forEach((delay, idx) => {
         setTimeout(() => {
           this.playBallClick(1.0 - idx * 0.25);
         }, delay * 1000);
       });
 
-      // Low end cluster boom
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -346,7 +329,6 @@ export default function SnookongGame() {
   const [isNewBest, setIsNewBest] = useState(false);
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
 
-  // Tracks active PC keyboard keys for smooth 60fps movement
   const keysPressed = useRef({ left: false, right: false });
 
   const engineRef = useRef({
@@ -582,23 +564,38 @@ export default function SnookongGame() {
     }
   };
 
+  // Passive fouls: deduct score and reset break; return target to RED if reds remain
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - penalty);
     engine.currentBreak = 0;
+
+    // Reset requirement to RED if reds remain on table
+    if (engine.redsRemaining > 0) {
+      engine.targetState = 'RED';
+      setTargetBallType('RED');
+    }
+
     setScore(engine.score);
     setCurrentBreak(0);
     setFoulBanner({ text: reason, penalty, lostLife: false });
     setTimeout(() => setFoulBanner(null), 1800);
   };
 
+  // Critical scratches: paddle drains or pocket scratches; return target to RED if reds remain
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - 4);
     engine.currentBreak = 0;
     engine.lives -= 1;
+
+    // Reset requirement to RED if reds remain on table
+    if (engine.redsRemaining > 0) {
+      engine.targetState = 'RED';
+      setTargetBallType('RED');
+    }
 
     setScore(engine.score);
     setCurrentBreak(0);
@@ -764,10 +761,10 @@ export default function SnookongGame() {
     }
   }, [score, personalBest]);
 
-  // Robust PC Keyboard Handling (Arrow Keys & WASD)
+  // PC Keyboard Handling (Space, Enter, Arrow Keys, WASD)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
         e.preventDefault();
         fireShot();
       } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -777,7 +774,6 @@ export default function SnookongGame() {
         e.preventDefault();
         keysPressed.current.right = true;
       } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-        // Aim angle adjustments during setup states
         if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND') {
           e.preventDefault();
           updateAimAngle(engineRef.current.aimOffsetDeg + 5);
@@ -846,7 +842,6 @@ export default function SnookongGame() {
       const engine = engineRef.current;
       const paddle = engine.paddle;
 
-      // Handle Smooth PC Keyboard Paddle Movement
       const minX = CUSHION_WIDTH + paddle.width / 2;
       const maxX = V_WIDTH - CUSHION_WIDTH - paddle.width / 2;
       if (keysPressed.current.left) {
@@ -1638,7 +1633,7 @@ Play on pottheblack.com/games/snookong`;
               <Zap size={14} className="fill-neutral-950" />
               <span>{gameState === 'BREAK_AIM' ? 'FIRE BREAK' : 'STRIKE CUE'}</span>
               <span className="text-[9px] bg-neutral-950/20 px-1 py-0.5 rounded font-bold">
-                SPACE / TAP
+                ENTER / SPACE
               </span>
             </button>
           </div>
@@ -1670,7 +1665,7 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> to tweak aim. Press <code className="text-amber-300">Spacebar</code> to strike.
+                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
                 <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
@@ -1679,7 +1674,7 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
               </li>
               <li>
-                <strong className="text-emerald-400">Fouls:</strong> Potting an illegal ball resets your current break and deducts points, but the rally keeps going.
+                <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong>.
               </li>
               <li>
                 <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
