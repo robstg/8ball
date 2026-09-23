@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Trophy, 
@@ -29,6 +30,12 @@ const OBJECT_FRICTION = 0.988; // Realistic cloth rolling friction
 const PADDLE_WIDTH = 88;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 736;
+// Table-center colors (Brown/Pink/Blue/Black) all share x=225, same as the
+// table's visual center. Resting the paddle dead-center means a straight
+// (0 degree) shot collides with a color before it ever reaches the reds —
+// an instant, near-guaranteed foul on the most obvious first shot. Offsetting
+// the default aim keeps the straight-shot lane inside the reds pack instead.
+const PADDLE_DEFAULT_X = 253;
 
 const SNOOKER_COLORS = {
   RED: { name: 'Red', value: 1, hex: '#e11d48', darkHex: '#881337', specular: '#fda4af' },
@@ -224,15 +231,15 @@ export default function SnookongGame() {
     gameState: 'BREAK_AIM', // State mirror to eliminate frame race conditions
     aimOffsetDeg: 0,
     paddle: {
-      x: 225,
+      x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
       width: PADDLE_WIDTH,
       height: PADDLE_HEIGHT,
-      targetX: 225,
+      targetX: PADDLE_DEFAULT_X,
       vx: 0
     },
     cueBall: {
-      x: 225,
+      x: PADDLE_DEFAULT_X,
       y: PADDLE_Y - BALL_RADIUS - 7,
       vx: 0,
       vy: 0,
@@ -353,10 +360,10 @@ export default function SnookongGame() {
     });
 
     engine.balls = balls;
-    engine.paddle.x = 225;
-    engine.paddle.targetX = 225;
+    engine.paddle.x = PADDLE_DEFAULT_X;
+    engine.paddle.targetX = PADDLE_DEFAULT_X;
     engine.cueBall = {
-      x: 225,
+      x: PADDLE_DEFAULT_X,
       y: PADDLE_Y - BALL_RADIUS - 7,
       vx: 0,
       vy: 0,
@@ -772,8 +779,19 @@ export default function SnookongGame() {
 
         engine.pockets.forEach(pocket => {
           const dist = Math.hypot(cue.x - pocket.x, cue.y - pocket.y);
-          if (dist < POCKET_RADIUS - 3) {
-            handleFoul('In-off Pocket Scratch! Ball in hand.', 4);
+          const captureRadius = POCKET_RADIUS - 3;
+          if (dist < captureRadius) {
+            // Only a genuine scratch if the cue ball is actually heading
+            // toward the pocket (or has nearly stopped right in its mouth).
+            // Without this, a normal rail bounce near a mid-table pocket
+            // gets swallowed even though the ball is moving away from it.
+            const toPocketX = pocket.x - cue.x;
+            const toPocketY = pocket.y - cue.y;
+            const approaching = cue.vx * toPocketX + cue.vy * toPocketY >= 0;
+            const nearlyStopped = dist < captureRadius * 0.5;
+            if (approaching || nearlyStopped) {
+              handleFoul('In-off Pocket Scratch! Ball in hand.', 4);
+            }
           }
         });
       }
@@ -822,7 +840,13 @@ export default function SnookongGame() {
         engine.pockets.forEach(pocket => {
           const dist = Math.hypot(ball.x - pocket.x, ball.y - pocket.y);
           if (dist < POCKET_RADIUS) {
-            handlePotBall(ball);
+            const toPocketX = pocket.x - ball.x;
+            const toPocketY = pocket.y - ball.y;
+            const approaching = ball.vx * toPocketX + ball.vy * toPocketY >= 0;
+            const nearlyStopped = dist < POCKET_RADIUS * 0.5;
+            if (approaching || nearlyStopped) {
+              handlePotBall(ball);
+            }
           }
         });
       });
@@ -1257,11 +1281,22 @@ Play on pottheblack.com/games/snookong`;
       }}
     >
       <header className="w-full max-w-[450px] flex items-center justify-between py-2 px-1 text-xs border-b border-neutral-800 mb-2">
-        <div className="flex items-center space-x-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          <span className="font-bold tracking-wider text-neutral-200 uppercase">
-            Pot The Black <span className="text-emerald-400">/ Snookong</span>
-          </span>
+        <div className="flex items-center space-x-3">
+          <Link
+            href="/"
+            className="flex items-center space-x-1 text-neutral-400 hover:text-emerald-400 transition-colors"
+          >
+            <ChevronLeft size={14} />
+            <span className="font-semibold">Home</span>
+          </Link>
+          <span className="text-neutral-700">|</span>
+          <div className="flex items-center space-x-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            <span className="font-bold tracking-wider text-neutral-200 uppercase">
+              <span className="hidden sm:inline">Pot The Black </span>
+              <span className="text-emerald-400">/ Snookong</span>
+            </span>
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <button 
