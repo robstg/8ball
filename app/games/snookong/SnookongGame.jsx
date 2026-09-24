@@ -30,7 +30,11 @@ const MIN_VERTICAL_VELOCITY = 1.05; // Prevents horizontal ping-pong loops
 const PADDLE_WIDTH = 92;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
-const PADDLE_DEFAULT_X = 225;
+// Table-center colors (Brown/Pink/Blue/Black) all share x=225. Resting the
+// paddle dead-center means a straight (0 degree) shot collides with a color
+// before it ever reaches the reds. Offsetting keeps a straight shot inside
+// the reds pack instead.
+const PADDLE_DEFAULT_X = 253;
 const KEYBOARD_PADDLE_SPEED = 8.5; // Smooth 60fps keyboard movement
 
 const SNOOKER_COLORS = {
@@ -328,6 +332,7 @@ export default function SnookongGame() {
   const [copiedToast, setCopiedToast] = useState(false);
   const [personalBest, setPersonalBest] = useState(0);
   const [isNewBest, setIsNewBest] = useState(false);
+  const [potToast, setPotToast] = useState(null);
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
 
   const keysPressed = useRef({ left: false, right: false });
@@ -495,7 +500,7 @@ export default function SnookongGame() {
     soundRef.current.init();
     const engine = engineRef.current;
     
-    if (engine.gameState !== 'BREAK_AIM' && engine.gameState !== 'BALL_IN_HAND') {
+    if (engine.gameState !== 'BREAK_AIM' && engine.gameState !== 'BALL_IN_HAND' && engine.gameState !== 'RE_AIM') {
       return;
     }
 
@@ -627,6 +632,32 @@ export default function SnookongGame() {
     updateAimAngle(0);
   };
 
+  // Dock-and-reaim: after every legal pot (red or color, but not the game-
+  // ending final black), the cue ball is caught back on the paddle and
+  // control returns to the player for a fresh, deliberate shot — same as a
+  // real snooker player addressing the cue ball again after potting. Without
+  // this, the ball stays live at constant speed and the player has to blind-
+  // react their way from a red straight into a color with no pause, which is
+  // what made red-then-color feel nearly impossible before this change.
+  const dockForReaim = (message) => {
+    const engine = engineRef.current;
+    engine.cueBall.active = false;
+    engine.cueBall.potted = false;
+    engine.cueBall.scale = 1.0;
+    engine.cueBall.vx = 0;
+    engine.cueBall.vy = 0;
+    engine.cueBall.x = engine.paddle.x;
+    engine.cueBall.y = engine.paddle.y - BALL_RADIUS - 7;
+    engine.consecutiveSideBounces = 0;
+    engine.gameState = 'RE_AIM';
+    setGameState('RE_AIM');
+    updateAimAngle(0);
+    if (message) {
+      setPotToast(message);
+      setTimeout(() => setPotToast(null), 1400);
+    }
+  };
+
   const respotBall = (ball) => {
     const engine = engineRef.current;
     let target = { ...ball.spot };
@@ -680,6 +711,11 @@ export default function SnookongGame() {
           setHighestBreak(engine.highestBreak);
           setRedsLeft(engine.redsRemaining);
           setHistoryPots([...engine.potLog]);
+          dockForReaim(
+            engine.redsRemaining === 0
+              ? '🔴 Red potted — on to the colors!'
+              : '🔴 Red potted — pick a colour'
+          );
         } else {
           respotBall(ball);
           triggerFoulPenalty(`Potted ${ball.type} on RED`, Math.max(4, SNOOKER_COLORS[ball.type].value));
@@ -701,6 +737,7 @@ export default function SnookongGame() {
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
+          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
         } else {
           triggerFoulPenalty('Potted RED on COLOR', 4);
         }
@@ -730,6 +767,7 @@ export default function SnookongGame() {
           const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex];
           engine.targetState = nextTarget;
           setTargetBallType(nextTarget);
+          dockForReaim(`${SNOOKER_COLORS[ball.type].name} cleared — next: ${SNOOKER_COLORS[nextTarget].name}`);
         }
       } else {
         respotBall(ball);
@@ -784,12 +822,12 @@ export default function SnookongGame() {
         e.preventDefault();
         keysPressed.current.right = true;
       } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND') {
+        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND' || engineRef.current.gameState === 'RE_AIM') {
           e.preventDefault();
           updateAimAngle(engineRef.current.aimOffsetDeg + 5);
         }
       } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND') {
+        if (engineRef.current.gameState === 'BREAK_AIM' || engineRef.current.gameState === 'BALL_IN_HAND' || engineRef.current.gameState === 'RE_AIM') {
           e.preventDefault();
           updateAimAngle(engineRef.current.aimOffsetDeg - 5);
         }
@@ -836,7 +874,7 @@ export default function SnookongGame() {
 
   const handlePointerUp = () => {
     const engine = engineRef.current;
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
       fireShot();
     }
   };
@@ -867,7 +905,7 @@ export default function SnookongGame() {
 
       const cue = engine.cueBall;
 
-      if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
+      if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
         cue.x = paddle.x;
         cue.y = paddle.y - BALL_RADIUS - 7;
         cue.vx = 0;
@@ -1170,13 +1208,14 @@ export default function SnookongGame() {
       ctx.fill();
     });
 
-    // Trajectory guide & Vertical Cue Stick (ONLY during BREAK_AIM)
-    if (engine.gameState === 'BREAK_AIM') {
+    // Trajectory guide & Vertical Cue Stick — shown for every aiming state now,
+    // since RE_AIM (after a pot) is the main loop, not just the opening break
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
       const cueAngleRad = (engine.aimOffsetDeg * Math.PI) / 180;
       drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, cueAngleRad);
     }
 
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
       const rad = (-90 + engine.aimOffsetDeg) * (Math.PI / 180);
       drawTrajectoryGuide(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad, engine);
     }
@@ -1207,7 +1246,7 @@ export default function SnookongGame() {
     ctx.fill();
 
     // Cue Dock Halo
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND') {
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -1582,6 +1621,13 @@ Play on pottheblack.com/games/snookong`;
             </div>
           )}
 
+          {potToast && !foulBanner && (
+            <div className="absolute top-8 left-3 right-3 bg-emerald-950/95 border border-emerald-500 text-emerald-200 px-2 py-1.5 rounded-lg text-center text-xs font-bold shadow-2xl backdrop-blur-md flex items-center justify-center space-x-1.5 z-20">
+              <Trophy size={14} className="text-emerald-400 shrink-0" />
+              <span>{potToast}</span>
+            </div>
+          )}
+
           {(gameState === 'GAMEOVER' || gameState === 'VICTORY') && (
             <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-30">
               <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 mb-2 shadow-lg">
@@ -1643,7 +1689,7 @@ Play on pottheblack.com/games/snookong`;
 
       {/* 4. PERSISTENT FIXED-HEIGHT DOCK */}
       <footer className="w-full max-w-[420px] mx-auto h-14 bg-neutral-900/95 border border-neutral-800 rounded-lg px-2 flex items-center justify-between shrink-0 shadow-xl backdrop-blur-md">
-        {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND') ? (
+        {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND' || gameState === 'RE_AIM') ? (
           <div className="w-full flex items-center space-x-2">
             <div className="flex items-center space-x-1">
               <button
