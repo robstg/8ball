@@ -60,6 +60,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     }));
 
+    // 6. Games — not a Sanity document type, so these are hardcoded for now,
+    // same reasoning as the discipline hubs above. Add new game slugs here
+    // as they launch until/unless games get their own Sanity schema.
+    const gameSlugs = ['snookong'];
+    const gameRoutes = gameSlugs.map((slug) => ({
+      url: `${baseUrl}/games/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
+
     // Determine the true Sanity modified date for about-us, fallback safely only if document doesn't exist
     const aboutLastModified = data.aboutPage?._updatedAt 
       ? new Date(data.aboutPage._updatedAt) 
@@ -84,7 +95,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       },
+      {
+        url: `${baseUrl}/games`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      },
       ...disciplineRoutes,
+      ...gameRoutes,
       ...postRoutes,
       ...guideRoutes,
       ...ruleRoutes,
