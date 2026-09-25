@@ -24,10 +24,16 @@ const V_HEIGHT = 800;
 const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
+// Same visual pocket, different capture strictness depending on which ball
+// it is: the cue ball scratching feels bad and shouldn't happen on a near
+// miss, while reds/colors dropping is the entire point of the game and
+// should be generous. Two different capture radii off the same visual mouth.
+const CUE_POCKET_CAPTURE = POCKET_RADIUS - 8; // stricter — cue must be well inside the mouth
+const OBJECT_POCKET_CAPTURE = POCKET_RADIUS + 6; // looser — reds/colors drop from further out
 const CUE_SPEED = 4.6;
 const OBJECT_FRICTION = 0.9908; // Calibrated for +30% longer roll
 const MIN_VERTICAL_VELOCITY = 1.05; // Prevents horizontal ping-pong loops
-const PADDLE_WIDTH = 92;
+const PADDLE_WIDTH = 114; // widened for easier thumb control on mobile
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
 // Table-center colors (Brown/Pink/Blue/Black) all share x=225. Resting the
@@ -258,6 +264,19 @@ class RealisticSoundEngine {
           gain2.connect(this.ctx.destination);
           osc2.start(t);
           osc2.stop(t + 0.035);
+
+          // Bright sparkle chime — scales with ball value so pinks/blacks
+          // feel a touch more rewarding to pot than a plain red.
+          const sparkle = this.ctx.createOscillator();
+          const sparkleGain = this.ctx.createGain();
+          sparkle.type = 'sine';
+          sparkle.frequency.setValueAtTime(1900 + colorValue * 90, t);
+          sparkleGain.gain.setValueAtTime(0.11, t);
+          sparkleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+          sparkle.connect(sparkleGain);
+          sparkleGain.connect(this.ctx.destination);
+          sparkle.start(t);
+          sparkle.stop(t + 0.15);
         } catch (err) {}
       }, 75);
     } catch (e) {}
@@ -293,35 +312,93 @@ class RealisticSoundEngine {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.setValueAtTime(90, now + 0.14);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.35);
+
+      // Two descending, slightly detuned stabs — classic arcade "wrong" buzz
+      [0, 0.1].forEach((delay, idx) => {
+        const t = now + delay;
+        const freq = idx === 0 ? 190 : 115;
+        const osc = this.ctx.createOscillator();
+        const detune = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        detune.type = 'square';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.55, t + 0.13);
+        detune.frequency.setValueAtTime(freq * 1.012, t);
+        detune.frequency.exponentialRampToValueAtTime(freq * 0.55 * 1.012, t + 0.13);
+        gain.gain.setValueAtTime(0.26, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+        osc.connect(gain);
+        detune.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.17);
+        detune.start(t);
+        detune.stop(t + 0.17);
+      });
+
+      if (this.noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, now);
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.15, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.32);
+      }
     } catch (e) {}
   }
 
   playVictoryFanfare() {
     if (!this.enabled || !this.ctx) return;
     try {
-      const notes = [440, 554, 659, 880];
+      const notes = [440, 554, 659, 880, 1108];
       notes.forEach((freq, idx) => {
+        const t = this.ctx.currentTime + idx * 0.11;
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        const now = this.ctx.currentTime + idx * 0.12;
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.24, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.26, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.22);
+        osc.start(t);
+        osc.stop(t + 0.25);
+
+        // Harmony a fifth above, quieter — gives each note more body
+        const harmOsc = this.ctx.createOscillator();
+        const harmGain = this.ctx.createGain();
+        harmOsc.type = 'sine';
+        harmOsc.frequency.setValueAtTime(freq * 1.5, t);
+        harmGain.gain.setValueAtTime(0.1, t);
+        harmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+        harmOsc.connect(harmGain);
+        harmGain.connect(this.ctx.destination);
+        harmOsc.start(t);
+        harmOsc.stop(t + 0.23);
+      });
+
+      // Sustained final chord for a triumphant finish
+      const chordStart = this.ctx.currentTime + notes.length * 0.11;
+      [880, 1108, 1318].forEach((freq) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, chordStart);
+        gain.gain.setValueAtTime(0.16, chordStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.6);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(chordStart);
+        osc.stop(chordStart + 0.62);
       });
     } catch (e) {}
   }
@@ -917,7 +994,7 @@ export default function SnookongGame() {
       }
 
       const prevPaddleX = paddle.x;
-      paddle.x += (paddle.targetX - paddle.x) * 0.48;
+      paddle.x += (paddle.targetX - paddle.x) * 0.56; // snappier finger tracking (was 0.48)
       paddle.vx = paddle.x - prevPaddleX;
 
       const cue = engine.cueBall;
@@ -1002,8 +1079,8 @@ export default function SnookongGame() {
             cue.vy > 0 &&
             cue.y + cue.radius >= paddleTop &&
             cue.y - cue.radius <= paddleBottom &&
-            cue.x >= paddleLeft - 6 &&
-            cue.x <= paddleRight + 6
+            cue.x >= paddleLeft - 10 &&
+            cue.x <= paddleRight + 10
           ) {
             cue.y = paddleTop - cue.radius;
             engine.consecutiveSideBounces = 0;
@@ -1033,12 +1110,17 @@ export default function SnookongGame() {
           if (!stateChangedThisTick) {
             engine.pockets.forEach(pocket => {
               if (stateChangedThisTick) return;
-              const dist = Math.hypot(cue.x - pocket.x, cue.y - pocket.y);
-              if (dist < POCKET_RADIUS - 4) {
-                const toPocketX = pocket.x - cue.x;
-                const toPocketY = pocket.y - cue.y;
-                const approaching = cue.vx * toPocketX + cue.vy * toPocketY >= 0;
-                if (approaching) {
+              const toPocketX = pocket.x - cue.x;
+              const toPocketY = pocket.y - cue.y;
+              const dist = Math.hypot(toPocketX, toPocketY);
+              if (dist < CUE_POCKET_CAPTURE) {
+                // Normalized approach — only counts if the cue ball is
+                // genuinely heading into the mouth (cos of the angle between
+                // velocity and the to-pocket vector), not just clipping past
+                // it at a shallow, glancing angle.
+                const speedNow2 = Math.hypot(cue.vx, cue.vy) || 1;
+                const approachCos = (cue.vx * toPocketX + cue.vy * toPocketY) / ((dist || 1) * speedNow2);
+                if (approachCos > 0.25) {
                   handleCriticalScratch('Pocket Scratch!');
                   stateChangedThisTick = true;
                 }
@@ -1092,11 +1174,11 @@ export default function SnookongGame() {
 
         engine.pockets.forEach(pocket => {
           const dist = Math.hypot(ball.x - pocket.x, ball.y - pocket.y);
-          if (dist < POCKET_RADIUS) {
+          if (dist < OBJECT_POCKET_CAPTURE) {
             const toPocketX = pocket.x - ball.x;
             const toPocketY = pocket.y - ball.y;
             const approaching = ball.vx * toPocketX + ball.vy * toPocketY >= 0;
-            if (approaching || dist < POCKET_RADIUS * 0.5) {
+            if (approaching || dist < OBJECT_POCKET_CAPTURE * 0.55) {
               handlePotBall(ball);
             }
           }
