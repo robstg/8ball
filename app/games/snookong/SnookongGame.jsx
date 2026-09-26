@@ -19,6 +19,12 @@ import {
   Plus
 } from 'lucide-react';
 
+// Bump this to today's date every time this file is edited and handed over —
+// shown as a small tag next to the title so it's obvious at a glance whether
+// a deploy actually picked up the latest version or is still serving a
+// cached/stale build.
+const BUILD_DATE = '2026-09-27';
+
 const V_WIDTH = 450;
 const V_HEIGHT = 800;
 const CUSHION_WIDTH = 26;
@@ -1283,13 +1289,27 @@ export default function SnookongGame() {
 
       // Cue Ball to Object Ball Collisions
       if (cue.active) {
-        engine.balls.forEach(ball => {
+        engine.balls.forEach((ball, ballIdx) => {
           if (ball.isPotted) return;
-          const dx = ball.x - cue.x;
-          const dy = ball.y - cue.y;
-          const dist = Math.hypot(dx, dy);
+          let dx = ball.x - cue.x;
+          let dy = ball.y - cue.y;
+          let dist = Math.hypot(dx, dy);
 
-          if (dist < cue.radius + ball.radius && dist > 0) {
+          if (dist < cue.radius + ball.radius) {
+            // Two balls landing exactly (or almost exactly) on top of each
+            // other used to silently skip resolution entirely (the old
+            // `dist > 0` guard), leaving one invisibly stacked underneath
+            // the other forever — the ball never gets potted, so counters
+            // stay accurate, but it visually vanishes from the table. A
+            // deterministic fallback direction guarantees they always
+            // separate instead.
+            if (dist < 0.5) {
+              const fallbackAngle = (ballIdx * 47) % 360 * (Math.PI / 180);
+              dx = Math.cos(fallbackAngle);
+              dy = Math.sin(fallbackAngle);
+              dist = 1;
+            }
+
             engine.consecutiveSideBounces = 0;
 
             const nx = dx / dist;
@@ -1326,11 +1346,25 @@ export default function SnookongGame() {
           const b2 = engine.balls[j];
           if (b2.isPotted) continue;
 
-          const dx = b2.x - b1.x;
-          const dy = b2.y - b1.y;
-          const dist = Math.hypot(dx, dy);
+          let dx = b2.x - b1.x;
+          let dy = b2.y - b1.y;
+          let dist = Math.hypot(dx, dy);
 
-          if (dist < b1.radius + b2.radius && dist > 0) {
+          if (dist < b1.radius + b2.radius) {
+            // Same fix as the cue-ball collision above: two balls landing
+            // exactly on top of each other (most likely during the break,
+            // when ten reds start touching in a tight rack) used to skip
+            // separation entirely, leaving one permanently hidden behind
+            // the other — never potted, just invisible. This is almost
+            // certainly why reds can appear to vanish from the table while
+            // the "Reds Left" counter still (correctly) counts them.
+            if (dist < 0.5) {
+              const fallbackAngle = ((i * 47 + j * 13) % 360) * (Math.PI / 180);
+              dx = Math.cos(fallbackAngle);
+              dy = Math.sin(fallbackAngle);
+              dist = 1;
+            }
+
             const nx = dx / dist;
             const ny = dy / dist;
             const overlap = (b1.radius + b2.radius) - dist;
@@ -1750,6 +1784,9 @@ Play on pottheblack.com/games/snookong`;
           <span className="text-neutral-700">|</span>
           <span className="font-bold tracking-wider text-neutral-200 uppercase text-[11px]">
             Snookong
+          </span>
+          <span className="text-[8px] font-mono text-neutral-600" title="Build date">
+            {BUILD_DATE}
           </span>
         </div>
         <div className="flex items-center space-x-1.5">
