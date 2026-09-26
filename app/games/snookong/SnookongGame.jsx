@@ -71,6 +71,9 @@ class RealisticSoundEngine {
     this.ctx = null;
     this.enabled = true;
     this.noiseBuffer = null;
+    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    this.refereeVoice = null;
+    this.initVoices();
   }
 
   init() {
@@ -81,6 +84,34 @@ class RealisticSoundEngine {
         this.generateNoiseBuffer();
       }
     }
+    this.initVoices();
+  }
+
+  initVoices() {
+    if (!this.synth) return;
+    const updateVoice = () => {
+      const voices = this.synth.getVoices();
+      // Look for a British English voice for authentic Crucible referee tone
+      this.refereeVoice = voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB') ||
+                          voices.find(v => v.lang.startsWith('en')) ||
+                          null;
+    };
+    updateVoice();
+    if (this.synth.onvoiceschanged !== undefined) {
+      this.synth.onvoiceschanged = updateVoice;
+    }
+  }
+
+  speakReferee(phrase) {
+    if (!this.enabled || !this.synth) return;
+    try {
+      this.synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(phrase);
+      if (this.refereeVoice) utterance.voice = this.refereeVoice;
+      utterance.pitch = 0.94; // Calm, measured referee pitch
+      utterance.rate = 0.98;
+      this.synth.speak(utterance);
+    } catch (e) {}
   }
 
   generateNoiseBuffer() {
@@ -465,6 +496,7 @@ export default function SnookongGame() {
     phase: 'REDS',
     aimOffsetDeg: 0,
     consecutiveSideBounces: 0,
+    firstContactMade: false,
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -609,6 +641,7 @@ export default function SnookongGame() {
     engine.phase = 'REDS';
     engine.aimOffsetDeg = 0;
     engine.consecutiveSideBounces = 0;
+    engine.firstContactMade = false;
     engine.targetState = 'RED';
     engine.clearanceIndex = 0;
     engine.redsRemaining = 10;
@@ -645,6 +678,7 @@ export default function SnookongGame() {
     engine.consecutiveSideBounces = 0;
     engine.shotClockSteps = 0;
     engine.lastTickSecond = null;
+    engine.firstContactMade = false;
 
     if (engine.gameState === 'BREAK_AIM') {
       soundRef.current.playBreakExplosion();
@@ -676,8 +710,12 @@ export default function SnookongGame() {
 
   const toggleSound = () => {
     soundRef.current.init();
-    soundRef.current.enabled = !soundEnabled;
-    setSoundEnabled(!soundEnabled);
+    const nextState = !soundEnabled;
+    soundRef.current.enabled = nextState;
+    if (!nextState && soundRef.current.synth) {
+      soundRef.current.synth.cancel();
+    }
+    setSoundEnabled(nextState);
   };
 
   const updateAimAngle = (newOffset) => {
@@ -706,6 +744,7 @@ export default function SnookongGame() {
 
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
+    soundRef.current.speakReferee(`Foul, ${penalty}`);
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - penalty);
     engine.currentBreak = 0;
@@ -732,11 +771,13 @@ export default function SnookongGame() {
 
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
+    soundRef.current.speakReferee('Foul, 4');
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - 4);
     engine.currentBreak = 0;
     engine.lives -= 1;
     engine.consecutiveSideBounces = 0;
+    engine.firstContactMade = false;
 
     if (engine.phase === 'CLEARANCE') {
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
@@ -789,6 +830,7 @@ export default function SnookongGame() {
     engine.cueBall.x = engine.paddle.x;
     engine.cueBall.y = engine.paddle.y - BALL_RADIUS - 7;
     engine.consecutiveSideBounces = 0;
+    engine.firstContactMade = false;
     engine.gameState = 'RE_AIM';
     setGameState('RE_AIM');
     updateAimAngle(0);
@@ -838,6 +880,7 @@ export default function SnookongGame() {
           engine.highestBreak = engine.currentBreak;
         }
         engine.potLog.push(getColorEmoji(ball.type));
+        soundRef.current.speakReferee(String(engine.currentBreak));
 
         engine.clearanceIndex += 1;
         setScore(engine.score);
@@ -847,6 +890,11 @@ export default function SnookongGame() {
 
         if (engine.clearanceIndex >= CLEARANCE_SEQUENCE.length) {
           soundRef.current.playVictoryFanfare();
+          if (engine.highestBreak === 147) {
+            soundRef.current.speakReferee('One hundred and forty-seven. Frame and match.');
+          } else {
+            soundRef.current.speakReferee('Frame and match.');
+          }
           engine.gameState = 'VICTORY';
           setGameState('VICTORY');
         } else {
@@ -857,7 +905,9 @@ export default function SnookongGame() {
         }
       } else {
         respotBall(ball);
-        triggerFoulPenalty(`Wrong Ball: ${ball.type}`, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
+        const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+        triggerFoulPenalty(`Wrong Ball: ${ball.type}`, penalty);
+        dockForReaim(`Foul (-${penalty}) — potted wrong colour`);
       }
       return;
     }
@@ -872,8 +922,8 @@ export default function SnookongGame() {
         }
         engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
         engine.potLog.push('🔴');
+        soundRef.current.speakReferee(String(engine.currentBreak));
 
-        // Always target ANY_COLOR next in regulation snooker, even after red 10
         engine.targetState = 'ANY_COLOR';
         setTargetBallType('ANY_COLOR');
 
@@ -890,7 +940,9 @@ export default function SnookongGame() {
         );
       } else {
         respotBall(ball);
-        triggerFoulPenalty(`Potted ${ball.type} on RED`, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
+        const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+        triggerFoulPenalty(`Potted ${ball.type} on RED`, penalty);
+        dockForReaim(`Foul (-${penalty}) — colour potted on red`);
       }
     } else if (engine.targetState === 'ANY_COLOR') {
       if (ball.type !== 'RED') {
@@ -901,6 +953,7 @@ export default function SnookongGame() {
           engine.highestBreak = engine.currentBreak;
         }
         engine.potLog.push(getColorEmoji(ball.type));
+        soundRef.current.speakReferee(String(engine.currentBreak));
 
         respotBall(ball);
 
@@ -913,7 +966,6 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
         } else {
-          // All reds and final color cleared: Start regulation clearance sequence
           engine.phase = 'CLEARANCE';
           engine.clearanceIndex = 0;
           engine.targetState = 'YELLOW';
@@ -926,8 +978,6 @@ export default function SnookongGame() {
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
         }
       } else {
-        // Red entered pocket while on ANY_COLOR.
-        // If ball was already docked in RE_AIM, this is a legal secondary red from the previous red stroke.
         if (engine.gameState === 'RE_AIM' && engine.redsRemaining > 0) {
           engine.score += 1;
           engine.currentBreak += 1;
@@ -936,6 +986,7 @@ export default function SnookongGame() {
           }
           engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
           engine.potLog.push('🔴');
+          soundRef.current.speakReferee(String(engine.currentBreak));
           setScore(engine.score);
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
@@ -943,6 +994,7 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
         } else {
           triggerFoulPenalty('Potted RED on COLOR', 4);
+          dockForReaim('Foul (-4) — potted red on colour');
         }
       }
     }
@@ -1038,7 +1090,6 @@ export default function SnookongGame() {
     const scaleX = V_WIDTH / rect.width;
     const canvasX = (clientX - rect.left) * scaleX;
     
-    // Paddle center can move within 3mm of cushion to allow tight rail play
     const minX = CUSHION_WIDTH + BALL_RADIUS + 3;
     const maxX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS - 3;
     engineRef.current.paddle.targetX = Math.max(minX, Math.min(maxX, canvasX));
@@ -1088,8 +1139,6 @@ export default function SnookongGame() {
       paddle.x += (paddle.targetX - paddle.x) * 0.56;
       paddle.vx = paddle.x - prevPaddleX;
 
-      // Dynamic wing reduction against cushions so the paddle never clips the rails
-      // while allowing the cue ball to sit flush along the cushion ("up the cush")
       const baseHalf = PADDLE_WIDTH / 2;
       const distLeft = paddle.x - CUSHION_WIDTH;
       const distRight = (V_WIDTH - CUSHION_WIDTH) - paddle.x;
@@ -1116,6 +1165,9 @@ export default function SnookongGame() {
         }
 
         if (shotTimedOut) {
+          if (engine.currentBreak > 0) {
+            soundRef.current.speakReferee(`Break of ${engine.currentBreak}`);
+          }
           dockForReaim("⏱️ Time's up — take aim again");
         } else {
           if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
@@ -1189,6 +1241,7 @@ export default function SnookongGame() {
             ) {
               cue.y = paddleTop - cue.radius;
               engine.consecutiveSideBounces = 0;
+              engine.firstContactMade = false; // Fresh contact check on every paddle deflection
   
               const activeWing = cue.x < paddle.x ? paddle.leftWing : paddle.rightWing;
               const hitOffset = (cue.x - paddle.x) / (activeWing || 57);
@@ -1285,10 +1338,11 @@ export default function SnookongGame() {
         });
       });
 
-      // Cue Ball to Object Ball Collisions
+      // Cue Ball to Object Ball Collisions & First-Contact Foul Tracking
       if (cue.active) {
-        engine.balls.forEach((ball, ballIdx) => {
-          if (ball.isPotted) return;
+        for (let ballIdx = 0; ballIdx < engine.balls.length; ballIdx++) {
+          const ball = engine.balls[ballIdx];
+          if (ball.isPotted) continue;
           let dx = ball.x - cue.x;
           let dy = ball.y - cue.y;
           let dist = Math.hypot(dx, dy);
@@ -1302,6 +1356,38 @@ export default function SnookongGame() {
             }
 
             engine.consecutiveSideBounces = 0;
+
+            // FIRST-CONTACT FOUL CHECK
+            if (!engine.firstContactMade) {
+              engine.firstContactMade = true;
+              let isLegalContact = true;
+              let foulReason = '';
+
+              if (engine.phase === 'CLEARANCE') {
+                const expectedType = CLEARANCE_SEQUENCE[engine.clearanceIndex];
+                if (ball.type !== expectedType) {
+                  isLegalContact = false;
+                  foulReason = `Hit ${SNOOKER_COLORS[ball.type]?.name || ball.type} first (on ${SNOOKER_COLORS[expectedType]?.name})`;
+                }
+              } else if (engine.targetState === 'RED') {
+                if (ball.type !== 'RED') {
+                  isLegalContact = false;
+                  foulReason = `Hit ${SNOOKER_COLORS[ball.type]?.name || ball.type} first (on Red)`;
+                }
+              } else if (engine.targetState === 'ANY_COLOR') {
+                if (ball.type === 'RED') {
+                  isLegalContact = false;
+                  foulReason = 'Hit Red first (on Colour)';
+                }
+              }
+
+              if (!isLegalContact) {
+                const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+                triggerFoulPenalty(foulReason, penalty);
+                dockForReaim(`Foul (-${penalty}) — ${foulReason}`);
+                break;
+              }
+            }
 
             const nx = dx / dist;
             const ny = dy / dist;
@@ -1326,7 +1412,7 @@ export default function SnookongGame() {
 
             soundRef.current.playBallClick(Math.min(1.2, Math.hypot(ball.vx, ball.vy) / 3.0));
           }
-        });
+        }
       }
 
       // Ball-to-Ball Collisions
@@ -1501,7 +1587,6 @@ export default function SnookongGame() {
     ctx.arc(paddle.x, paddle.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Subtle side rail compression caps when hugging the cushions
     if (leftWing < 42) {
       ctx.fillStyle = '#0284c7';
       ctx.fillRect(padL, padT + 2, 2.5, paddle.height - 4);
@@ -2011,7 +2096,7 @@ Play on pottheblack.com/games/snookong`;
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Arrow Keys / Drag to steer
             </span>
-            <span className="text-neutral-500 text-[10px]">Rails compress wing for tight bank shots</span>
+            <span className="text-neutral-500 text-[10px]">First contact must hit ball on</span>
           </div>
         )}
       </footer>
@@ -2035,16 +2120,16 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
-                <strong className="text-rose-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
+                <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on (Red when on reds, or a colour when on colours). Cushion bank shots and escapes are legal, but clipping the wrong ball first incurs an instant 4–7 pt foul.
               </li>
               <li>
-                <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
+                <strong className="text-white">Referee Calls:</strong> An official referee announces your cumulative break after each successful pot, calls fouls, and awards frame finishes.
               </li>
               <li>
-                <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong> (or the active clearance color once reds are gone).
+                <strong className="text-emerald-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
               </li>
               <li>
-                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted and the final corresponding color is scored, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
+                <strong className="text-amber-400">Endgame:</strong> After all 10 reds and the final corresponding color are cleared, sink the 6 colors in standard snooker order: Yellow → Green → Brown → Blue → Pink → Black.
               </li>
             </ul>
 
