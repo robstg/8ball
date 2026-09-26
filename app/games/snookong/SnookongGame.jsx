@@ -19,10 +19,6 @@ import {
   Plus
 } from 'lucide-react';
 
-// Bump this to today's date every time this file is edited and handed over —
-// shown as a small tag next to the title so it's obvious at a glance whether
-// a deploy actually picked up the latest version or is still serving a
-// cached/stale build.
 const BUILD_DATE = '2026-09-27';
 
 const V_WIDTH = 450;
@@ -30,41 +26,21 @@ const V_HEIGHT = 800;
 const CUSHION_WIDTH = 26;
 const BALL_RADIUS = 10.5;
 const POCKET_RADIUS = 20;
-// Same visual pocket, different capture strictness depending on which ball
-// it is: the cue ball scratching feels bad and shouldn't happen on a near
-// miss, while reds/colors dropping is the entire point of the game and
-// should be generous. Two different capture radii off the same visual mouth.
-const CUE_POCKET_CAPTURE = POCKET_RADIUS - 8; // stricter — cue must be well inside the mouth
-const OBJECT_POCKET_CAPTURE = POCKET_RADIUS + 6; // looser — reds/colors drop from further out
+
+const CUE_POCKET_CAPTURE = POCKET_RADIUS - 8;
+const OBJECT_POCKET_CAPTURE = POCKET_RADIUS + 6;
 const CUE_SPEED = 4.6;
-const OBJECT_FRICTION = 0.9908; // Calibrated for +30% longer roll
-const MIN_VERTICAL_VELOCITY = 1.05; // Prevents horizontal ping-pong loops
-const PADDLE_WIDTH = 114; // widened for easier thumb control on mobile
+const OBJECT_FRICTION = 0.9908;
+const MIN_VERTICAL_VELOCITY = 1.05;
+const PADDLE_WIDTH = 114;
 const PADDLE_HEIGHT = 14;
 const PADDLE_Y = 730;
-// Table-center colors (Brown/Pink/Blue/Black) all share x=225. Resting the
-// paddle dead-center means a straight (0 degree) shot collides with a color
-// before it ever reaches the reds. Offsetting keeps a straight shot inside
-// the reds pack instead.
 const PADDLE_DEFAULT_X = 253;
-const KEYBOARD_PADDLE_SPEED = 8.5; // Smooth 60fps keyboard movement
+const KEYBOARD_PADDLE_SPEED = 8.5;
 
-// All velocities/frictions above (CUE_SPEED, OBJECT_FRICTION, KEYBOARD_PADDLE_SPEED)
-// were tuned assuming one simulation step per rendered frame at ~60fps. On a
-// 120Hz+ phone, requestAnimationFrame fires twice as often, so without a fixed
-// timestep the whole game runs visibly faster (and less predictably) on newer
-// hardware. FIXED_STEP_MS decouples simulation speed from display refresh rate:
-// the physics loop always advances in these fixed-size chunks regardless of how
-// often the screen actually redraws. MAX_STEPS_PER_FRAME guards against a
-// "spiral of death" — if the tab was backgrounded and comes back after a long
-// gap, we cap how many steps we try to catch up on in one go rather than
-// freezing the page trying to simulate several real seconds at once.
 const FIXED_STEP_MS = 1000 / 60;
 const MAX_STEPS_PER_FRAME = 5;
 
-// Shot clock: how long a single shot gets before it's docked automatically.
-// Expressed in fixed simulation steps (not milliseconds) so it advances at
-// exactly the same rate the physics does — no separate timer to keep in sync.
 const SHOT_TIME_SECONDS = 10;
 const SHOT_TIME_STEPS = Math.round((SHOT_TIME_SECONDS * 1000) / FIXED_STEP_MS);
 
@@ -277,8 +253,6 @@ class RealisticSoundEngine {
           osc2.start(t);
           osc2.stop(t + 0.035);
 
-          // Bright sparkle chime — scales with ball value so pinks/blacks
-          // feel a touch more rewarding to pot than a plain red.
           const sparkle = this.ctx.createOscillator();
           const sparkleGain = this.ctx.createGain();
           sparkle.type = 'sine';
@@ -342,7 +316,6 @@ class RealisticSoundEngine {
     try {
       const now = this.ctx.currentTime;
 
-      // Two descending, slightly detuned stabs — classic arcade "wrong" buzz
       [0, 0.1].forEach((delay, idx) => {
         const t = now + delay;
         const freq = idx === 0 ? 190 : 115;
@@ -384,9 +357,6 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Distinct from the full victory fanfare — this marks "reds are done, it's
-  // colors time now", not "you won". Quicker, brighter, no final sustained
-  // chord, so it doesn't compete with the real victory moment later.
   playPhaseTransition() {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -437,7 +407,6 @@ class RealisticSoundEngine {
         osc.start(t);
         osc.stop(t + 0.25);
 
-        // Harmony a fifth above, quieter — gives each note more body
         const harmOsc = this.ctx.createOscillator();
         const harmGain = this.ctx.createGain();
         harmOsc.type = 'sine';
@@ -450,7 +419,6 @@ class RealisticSoundEngine {
         harmOsc.stop(t + 0.23);
       });
 
-      // Sustained final chord for a triumphant finish
       const chordStart = this.ctx.currentTime + notes.length * 0.11;
       [880, 1108, 1318].forEach((freq) => {
         const osc = this.ctx.createOscillator();
@@ -494,6 +462,7 @@ export default function SnookongGame() {
 
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
+    phase: 'REDS',
     aimOffsetDeg: 0,
     consecutiveSideBounces: 0,
     paddle: {
@@ -501,6 +470,8 @@ export default function SnookongGame() {
       y: PADDLE_Y,
       width: PADDLE_WIDTH,
       height: PADDLE_HEIGHT,
+      leftWing: PADDLE_WIDTH / 2,
+      rightWing: PADDLE_WIDTH / 2,
       targetX: PADDLE_DEFAULT_X,
       vx: 0
     },
@@ -539,7 +510,6 @@ export default function SnookongGame() {
     const engine = engineRef.current;
     const balls = [];
 
-    // Official 6 Colors on spots
     Object.entries(COLOR_SPOTS).forEach(([colorKey, spot]) => {
       balls.push({
         id: colorKey.toLowerCase(),
@@ -556,7 +526,6 @@ export default function SnookongGame() {
       });
     });
 
-    // 10 Reds Pyramid (4-3-2-1 formation)
     const rDist = BALL_RADIUS * 2.05;
     const rowOffset = rDist * 0.866;
     const startX = 225;
@@ -623,6 +592,9 @@ export default function SnookongGame() {
     engine.balls = balls;
     engine.paddle.x = PADDLE_DEFAULT_X;
     engine.paddle.targetX = PADDLE_DEFAULT_X;
+    engine.paddle.leftWing = PADDLE_WIDTH / 2;
+    engine.paddle.rightWing = PADDLE_WIDTH / 2;
+    engine.paddle.width = PADDLE_WIDTH;
     engine.cueBall = {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y - BALL_RADIUS - 7,
@@ -634,6 +606,7 @@ export default function SnookongGame() {
       scale: 1.0
     };
     engine.gameState = 'BREAK_AIM';
+    engine.phase = 'REDS';
     engine.aimOffsetDeg = 0;
     engine.consecutiveSideBounces = 0;
     engine.targetState = 'RED';
@@ -731,16 +704,24 @@ export default function SnookongGame() {
     }
   };
 
-  // Passive fouls: deduct score and reset active break; return target to RED if reds remain
   const triggerFoulPenalty = (reason, penalty = 4) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
     engine.score = Math.max(0, engine.score - penalty);
     engine.currentBreak = 0;
 
-    if (engine.redsRemaining > 0) {
+    if (engine.phase === 'CLEARANCE') {
+      const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
+      engine.targetState = nextTarget;
+      setTargetBallType(nextTarget);
+    } else if (engine.redsRemaining > 0) {
       engine.targetState = 'RED';
       setTargetBallType('RED');
+    } else {
+      engine.phase = 'CLEARANCE';
+      engine.clearanceIndex = 0;
+      engine.targetState = 'YELLOW';
+      setTargetBallType('YELLOW');
     }
 
     setScore(engine.score);
@@ -749,7 +730,6 @@ export default function SnookongGame() {
     setTimeout(() => setFoulBanner(null), 1800);
   };
 
-  // Critical scratches: paddle drains or pocket scratches; return target to RED if reds remain
   const handleCriticalScratch = (reason) => {
     soundRef.current.playFoulBuzzer();
     const engine = engineRef.current;
@@ -758,9 +738,18 @@ export default function SnookongGame() {
     engine.lives -= 1;
     engine.consecutiveSideBounces = 0;
 
-    if (engine.redsRemaining > 0) {
+    if (engine.phase === 'CLEARANCE') {
+      const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
+      engine.targetState = nextTarget;
+      setTargetBallType(nextTarget);
+    } else if (engine.redsRemaining > 0) {
       engine.targetState = 'RED';
       setTargetBallType('RED');
+    } else {
+      engine.phase = 'CLEARANCE';
+      engine.clearanceIndex = 0;
+      engine.targetState = 'YELLOW';
+      setTargetBallType('YELLOW');
     }
 
     setScore(engine.score);
@@ -790,13 +779,6 @@ export default function SnookongGame() {
     updateAimAngle(0);
   };
 
-  // Dock-and-reaim: after every legal pot (red or color, but not the game-
-  // ending final black), the cue ball is caught back on the paddle and
-  // control returns to the player for a fresh, deliberate shot — same as a
-  // real snooker player addressing the cue ball again after potting. Without
-  // this, the ball stays live at constant speed and the player has to blind-
-  // react their way from a red straight into a color with no pause, which is
-  // what made red-then-color feel nearly impossible before this change.
   const dockForReaim = (message) => {
     const engine = engineRef.current;
     engine.cueBall.active = false;
@@ -845,67 +827,11 @@ export default function SnookongGame() {
     soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1);
     spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
 
-    if (engine.redsRemaining > 0) {
-      if (engine.targetState === 'RED') {
-        if (ball.type === 'RED') {
-          engine.score += 1;
-          engine.currentBreak += 1;
-          if (engine.currentBreak > engine.highestBreak) {
-            engine.highestBreak = engine.currentBreak;
-          }
-          engine.redsRemaining -= 1;
-          engine.potLog.push('🔴');
-
-          if (engine.redsRemaining === 0) {
-            engine.targetState = 'YELLOW';
-            setTargetBallType('YELLOW');
-            soundRef.current.playPhaseTransition();
-          } else {
-            engine.targetState = 'ANY_COLOR';
-            setTargetBallType('ANY_COLOR');
-          }
-
-          // Immediate synchronous React dispatch to ensure HUD reflects pot instantaneously
-          setScore(engine.score);
-          setCurrentBreak(engine.currentBreak);
-          setHighestBreak(engine.highestBreak);
-          setRedsLeft(engine.redsRemaining);
-          setHistoryPots([...engine.potLog]);
-          dockForReaim(
-            engine.redsRemaining === 0
-              ? '🔴 Reds cleared! Colors in order: Yellow → Green → Brown → Blue → Pink → Black'
-              : '🔴 Red potted — pick a colour'
-          );
-        } else {
-          respotBall(ball);
-          triggerFoulPenalty(`Potted ${ball.type} on RED`, Math.max(4, SNOOKER_COLORS[ball.type].value));
-        }
-      } else if (engine.targetState === 'ANY_COLOR') {
-        if (ball.type !== 'RED') {
-          const pts = SNOOKER_COLORS[ball.type].value;
-          engine.score += pts;
-          engine.currentBreak += pts;
-          if (engine.currentBreak > engine.highestBreak) {
-            engine.highestBreak = engine.currentBreak;
-          }
-          engine.potLog.push(getColorEmoji(ball.type));
-
-          respotBall(ball);
-          engine.targetState = 'RED';
-          setTargetBallType('RED');
-          setScore(engine.score);
-          setCurrentBreak(engine.currentBreak);
-          setHighestBreak(engine.highestBreak);
-          setHistoryPots([...engine.potLog]);
-          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
-        } else {
-          triggerFoulPenalty('Potted RED on COLOR', 4);
-        }
-      }
-    } else {
+    // 1. REGULATION COLOR CLEARANCE PHASE
+    if (engine.phase === 'CLEARANCE') {
       const expectedType = CLEARANCE_SEQUENCE[engine.clearanceIndex];
       if (ball.type === expectedType) {
-        const pts = SNOOKER_COLORS[ball.type].value;
+        const pts = SNOOKER_COLORS[ball.type]?.value || 2;
         engine.score += pts;
         engine.currentBreak += pts;
         if (engine.currentBreak > engine.highestBreak) {
@@ -931,7 +857,93 @@ export default function SnookongGame() {
         }
       } else {
         respotBall(ball);
-        triggerFoulPenalty(`Wrong Ball: ${ball.type}`, Math.max(4, SNOOKER_COLORS[ball.type].value));
+        triggerFoulPenalty(`Wrong Ball: ${ball.type}`, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
+      }
+      return;
+    }
+
+    // 2. REDS & NOMINATED COLORS PHASE
+    if (engine.targetState === 'RED') {
+      if (ball.type === 'RED') {
+        engine.score += 1;
+        engine.currentBreak += 1;
+        if (engine.currentBreak > engine.highestBreak) {
+          engine.highestBreak = engine.currentBreak;
+        }
+        engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
+        engine.potLog.push('🔴');
+
+        // Always target ANY_COLOR next in regulation snooker, even after red 10
+        engine.targetState = 'ANY_COLOR';
+        setTargetBallType('ANY_COLOR');
+
+        setScore(engine.score);
+        setCurrentBreak(engine.currentBreak);
+        setHighestBreak(engine.highestBreak);
+        setRedsLeft(engine.redsRemaining);
+        setHistoryPots([...engine.potLog]);
+
+        dockForReaim(
+          engine.redsRemaining === 0
+            ? '🔴 Final red potted — nominate any colour'
+            : '🔴 Red potted — pick a colour'
+        );
+      } else {
+        respotBall(ball);
+        triggerFoulPenalty(`Potted ${ball.type} on RED`, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
+      }
+    } else if (engine.targetState === 'ANY_COLOR') {
+      if (ball.type !== 'RED') {
+        const pts = SNOOKER_COLORS[ball.type]?.value || 2;
+        engine.score += pts;
+        engine.currentBreak += pts;
+        if (engine.currentBreak > engine.highestBreak) {
+          engine.highestBreak = engine.currentBreak;
+        }
+        engine.potLog.push(getColorEmoji(ball.type));
+
+        respotBall(ball);
+
+        if (engine.redsRemaining > 0) {
+          engine.targetState = 'RED';
+          setTargetBallType('RED');
+          setScore(engine.score);
+          setCurrentBreak(engine.currentBreak);
+          setHighestBreak(engine.highestBreak);
+          setHistoryPots([...engine.potLog]);
+          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
+        } else {
+          // All reds and final color cleared: Start regulation clearance sequence
+          engine.phase = 'CLEARANCE';
+          engine.clearanceIndex = 0;
+          engine.targetState = 'YELLOW';
+          setTargetBallType('YELLOW');
+          setScore(engine.score);
+          setCurrentBreak(engine.currentBreak);
+          setHighestBreak(engine.highestBreak);
+          setHistoryPots([...engine.potLog]);
+          soundRef.current.playPhaseTransition();
+          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
+        }
+      } else {
+        // Red entered pocket while on ANY_COLOR.
+        // If ball was already docked in RE_AIM, this is a legal secondary red from the previous red stroke.
+        if (engine.gameState === 'RE_AIM' && engine.redsRemaining > 0) {
+          engine.score += 1;
+          engine.currentBreak += 1;
+          if (engine.currentBreak > engine.highestBreak) {
+            engine.highestBreak = engine.currentBreak;
+          }
+          engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
+          engine.potLog.push('🔴');
+          setScore(engine.score);
+          setCurrentBreak(engine.currentBreak);
+          setHighestBreak(engine.highestBreak);
+          setRedsLeft(engine.redsRemaining);
+          setHistoryPots([...engine.potLog]);
+        } else {
+          triggerFoulPenalty('Potted RED on COLOR', 4);
+        }
       }
     }
   };
@@ -969,21 +981,16 @@ export default function SnookongGame() {
     }
   }, [score, personalBest]);
 
-  // Safety net — the "Ball On" display should never be able to show RED once
-  // every red is gone. Every path that resets targetState is already guarded
-  // against this individually, but this effect makes it structurally
-  // impossible for the display to get stuck there regardless of cause,
-  // known or not: it self-corrects to the start of the clearance sequence
-  // the instant that impossible state is ever detected.
   useEffect(() => {
     if (redsLeft === 0 && targetBallType === 'RED') {
       const engine = engineRef.current;
-      engine.targetState = 'YELLOW';
-      setTargetBallType('YELLOW');
+      engine.phase = 'CLEARANCE';
+      const target = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
+      engine.targetState = target;
+      setTargetBallType(target);
     }
   }, [redsLeft, targetBallType]);
 
-  // PC Keyboard Handling (Space, Enter, Arrow Keys, WASD)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
@@ -1030,8 +1037,10 @@ export default function SnookongGame() {
     const rect = canvas.getBoundingClientRect();
     const scaleX = V_WIDTH / rect.width;
     const canvasX = (clientX - rect.left) * scaleX;
-    const minX = CUSHION_WIDTH + PADDLE_WIDTH / 2;
-    const maxX = V_WIDTH - CUSHION_WIDTH - PADDLE_WIDTH / 2;
+    
+    // Paddle center can move within 3mm of cushion to allow tight rail play
+    const minX = CUSHION_WIDTH + BALL_RADIUS + 3;
+    const maxX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS - 3;
     engineRef.current.paddle.targetX = Math.max(minX, Math.min(maxX, canvasX));
   };
 
@@ -1062,14 +1071,12 @@ export default function SnookongGame() {
     let lastTimestamp = null;
     let accumulator = 0;
 
-    // One fixed-size tick of the simulation. Called a fixed number of times
-    // per second regardless of display refresh rate (see runPhysicsLoop below).
     const stepSimulation = () => {
       const engine = engineRef.current;
       const paddle = engine.paddle;
 
-      const minX = CUSHION_WIDTH + paddle.width / 2;
-      const maxX = V_WIDTH - CUSHION_WIDTH - paddle.width / 2;
+      const minX = CUSHION_WIDTH + BALL_RADIUS + 3;
+      const maxX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS - 3;
       if (keysPressed.current.left) {
         paddle.targetX = Math.max(minX, paddle.targetX - KEYBOARD_PADDLE_SPEED);
       }
@@ -1078,8 +1085,17 @@ export default function SnookongGame() {
       }
 
       const prevPaddleX = paddle.x;
-      paddle.x += (paddle.targetX - paddle.x) * 0.56; // snappier finger tracking (was 0.48)
+      paddle.x += (paddle.targetX - paddle.x) * 0.56;
       paddle.vx = paddle.x - prevPaddleX;
+
+      // Dynamic wing reduction against cushions so the paddle never clips the rails
+      // while allowing the cue ball to sit flush along the cushion ("up the cush")
+      const baseHalf = PADDLE_WIDTH / 2;
+      const distLeft = paddle.x - CUSHION_WIDTH;
+      const distRight = (V_WIDTH - CUSHION_WIDTH) - paddle.x;
+      paddle.leftWing = Math.min(baseHalf, Math.max(BALL_RADIUS + 2, distLeft));
+      paddle.rightWing = Math.min(baseHalf, Math.max(BALL_RADIUS + 2, distRight));
+      paddle.width = paddle.leftWing + paddle.rightWing;
 
       const cue = engine.cueBall;
 
@@ -1090,11 +1106,6 @@ export default function SnookongGame() {
         cue.vy = 0;
         cue.active = false;
       } else if (cue.active) {
-        // Shot clock: counted in fixed simulation steps rather than wall-clock
-        // time, so it's exactly as consistent as the rest of the physics —
-        // no drift from frame rate. If a shot runs out the clock without
-        // potting or fouling, it's docked neutrally (no penalty) so a long
-        // stretch of aimless bouncing can't drag on forever.
         engine.shotClockSteps = (engine.shotClockSteps || 0) + 1;
         const shotTimedOut = engine.shotClockSteps > SHOT_TIME_STEPS;
         const stepsRemaining = SHOT_TIME_STEPS - engine.shotClockSteps;
@@ -1118,13 +1129,6 @@ export default function SnookongGame() {
             cue.vy = (cue.vy / speedNow) * CUE_SPEED;
           }
   
-          // Sub-stepped movement (Continuous Collision Detection): the paddle
-          // is only 14px thick, and moving the ball in one single jump per tick
-          // risks it landing fully past the paddle's y-range without the
-          // interception check ever seeing it "inside" the paddle — that's
-          // tunneling. Splitting the tick's movement into several smaller
-          // moves, each no bigger than the ball's radius, guarantees the ball
-          // can't skip over something as thin as the paddle between checks.
           const tickDistance = Math.hypot(cue.vx, cue.vy);
           const maxSafeStep = Math.min(BALL_RADIUS, PADDLE_HEIGHT / 2);
           const subSteps = Math.max(1, Math.ceil(tickDistance / maxSafeStep));
@@ -1170,34 +1174,32 @@ export default function SnookongGame() {
               soundRef.current.playCushionThud();
             }
   
-            // Paddle Interception — checked every sub-step, not just once per tick
+            // Paddle Interception
             const paddleTop = paddle.y - paddle.height / 2;
             const paddleBottom = paddle.y + paddle.height / 2;
-            const paddleLeft = paddle.x - paddle.width / 2;
-            const paddleRight = paddle.x + paddle.width / 2;
+            const paddleLeft = paddle.x - paddle.leftWing;
+            const paddleRight = paddle.x + paddle.rightWing;
   
             if (
               cue.vy > 0 &&
               cue.y + cue.radius >= paddleTop &&
               cue.y - cue.radius <= paddleBottom &&
-              cue.x >= paddleLeft - 10 &&
-              cue.x <= paddleRight + 10
+              cue.x >= paddleLeft - 8 &&
+              cue.x <= paddleRight + 8
             ) {
               cue.y = paddleTop - cue.radius;
               engine.consecutiveSideBounces = 0;
   
-              const hitOffset = (cue.x - paddle.x) / (paddle.width / 2);
+              const activeWing = cue.x < paddle.x ? paddle.leftWing : paddle.rightWing;
+              const hitOffset = (cue.x - paddle.x) / (activeWing || 57);
               const maxBounceAngle = (64 * Math.PI) / 180;
-              const bounceAngle = hitOffset * maxBounceAngle - Math.PI / 2;
+              const bounceAngle = Math.max(-maxBounceAngle, Math.min(maxBounceAngle, hitOffset * maxBounceAngle)) - Math.PI / 2;
   
               cue.vx = Math.cos(bounceAngle) * CUE_SPEED + paddle.vx * 0.2;
               cue.vy = Math.sin(bounceAngle) * CUE_SPEED;
   
               if (cue.vy > -1.5) cue.vy = -1.5;
               soundRef.current.playCushionThud();
-              // Velocity just changed — the remaining sub-steps this tick were
-              // computed from the old direction, so stop here rather than
-              // keep moving along a trajectory that's no longer correct.
               stateChangedThisTick = true;
             }
   
@@ -1215,10 +1217,6 @@ export default function SnookongGame() {
                 const toPocketY = pocket.y - cue.y;
                 const dist = Math.hypot(toPocketX, toPocketY);
                 if (dist < CUE_POCKET_CAPTURE) {
-                  // Normalized approach — only counts if the cue ball is
-                  // genuinely heading into the mouth (cos of the angle between
-                  // velocity and the to-pocket vector), not just clipping past
-                  // it at a shallow, glancing angle.
                   const speedNow2 = Math.hypot(cue.vx, cue.vy) || 1;
                   const approachCos = (cue.vx * toPocketX + cue.vy * toPocketY) / ((dist || 1) * speedNow2);
                   if (approachCos > 0.25) {
@@ -1232,7 +1230,7 @@ export default function SnookongGame() {
         }
       }
 
-      // Object Balls Movement & Calibrated Friction
+      // Object Balls Movement & Friction
       engine.balls.forEach(ball => {
         if (ball.isPotted) return;
 
@@ -1296,13 +1294,6 @@ export default function SnookongGame() {
           let dist = Math.hypot(dx, dy);
 
           if (dist < cue.radius + ball.radius) {
-            // Two balls landing exactly (or almost exactly) on top of each
-            // other used to silently skip resolution entirely (the old
-            // `dist > 0` guard), leaving one invisibly stacked underneath
-            // the other forever — the ball never gets potted, so counters
-            // stay accurate, but it visually vanishes from the table. A
-            // deterministic fallback direction guarantees they always
-            // separate instead.
             if (dist < 0.5) {
               const fallbackAngle = (ballIdx * 47) % 360 * (Math.PI / 180);
               dx = Math.cos(fallbackAngle);
@@ -1351,13 +1342,6 @@ export default function SnookongGame() {
           let dist = Math.hypot(dx, dy);
 
           if (dist < b1.radius + b2.radius) {
-            // Same fix as the cue-ball collision above: two balls landing
-            // exactly on top of each other (most likely during the break,
-            // when ten reds start touching in a tight rack) used to skip
-            // separation entirely, leaving one permanently hidden behind
-            // the other — never potted, just invisible. This is almost
-            // certainly why reds can appear to vanish from the table while
-            // the "Reds Left" counter still (correctly) counts them.
             if (dist < 0.5) {
               const fallbackAngle = ((i * 47 + j * 13) % 360) * (Math.PI / 180);
               dx = Math.cos(fallbackAngle);
@@ -1400,16 +1384,10 @@ export default function SnookongGame() {
       }
     };
 
-    // Fixed-timestep accumulator: advances the simulation in fixed FIXED_STEP_MS
-    // chunks based on real elapsed time, however often the display actually
-    // redraws. Rendering still happens once per animation frame — only the
-    // simulation itself is decoupled from refresh rate.
     const runPhysicsLoop = (timestamp) => {
       if (lastTimestamp === null) lastTimestamp = timestamp;
       let frameDelta = timestamp - lastTimestamp;
       lastTimestamp = timestamp;
-      // Clamp a huge gap (tab backgrounded, device slept) so we don't try to
-      // simulate minutes of missed time in one burst when it comes back.
       if (frameDelta > 250) frameDelta = 250;
       accumulator += frameDelta;
 
@@ -1484,8 +1462,7 @@ export default function SnookongGame() {
       ctx.fill();
     });
 
-    // Trajectory guide & Vertical Cue Stick — shown for every aiming state now,
-    // since RE_AIM (after a pot) is the main loop, not just the opening break
+    // Trajectory guide & Vertical Cue Stick
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
       const cueAngleRad = (engine.aimOffsetDeg * Math.PI) / 180;
       drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, cueAngleRad);
@@ -1496,14 +1473,17 @@ export default function SnookongGame() {
       drawTrajectoryGuide(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad, engine);
     }
 
-    // Paddle
+    // Adaptive Wing Paddle
     const paddle = engine.paddle;
-    const padL = paddle.x - paddle.width / 2;
+    const leftWing = paddle.leftWing || paddle.width / 2;
+    const rightWing = paddle.rightWing || paddle.width / 2;
+    const padL = paddle.x - leftWing;
+    const padW = leftWing + rightWing;
     const padT = paddle.y - paddle.height / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath();
-    ctx.roundRect(padL + 2, padT + 4, paddle.width, paddle.height, 6);
+    ctx.roundRect(padL + 2, padT + 4, padW, paddle.height, 6);
     ctx.fill();
 
     const padGrad = ctx.createLinearGradient(padL, padT, padL, padT + paddle.height);
@@ -1513,13 +1493,23 @@ export default function SnookongGame() {
     padGrad.addColorStop(1, '#0284c7');
     ctx.fillStyle = padGrad;
     ctx.beginPath();
-    ctx.roundRect(padL, padT, paddle.width, paddle.height, 6);
+    ctx.roundRect(padL, padT, padW, paddle.height, 6);
     ctx.fill();
 
     ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
     ctx.arc(paddle.x, paddle.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
+
+    // Subtle side rail compression caps when hugging the cushions
+    if (leftWing < 42) {
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(padL, padT + 2, 2.5, paddle.height - 4);
+    }
+    if (rightWing < 42) {
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(padL + padW - 2.5, padT + 2, 2.5, paddle.height - 4);
+    }
 
     // Cue Dock Halo
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
@@ -1563,17 +1553,14 @@ export default function SnookongGame() {
     const shaftLen = 65;
     const buttLen = 45;
 
-    // 1. Blue Chalked Tip
     ctx.fillStyle = '#0284c7';
     ctx.beginPath();
     ctx.roundRect(-2.2, tipDist, 4.4, 3, 1);
     ctx.fill();
 
-    // 2. Brass Ferrule
     ctx.fillStyle = '#eab308';
     ctx.fillRect(-2.4, tipDist + 3, 4.8, 4);
 
-    // 3. Ash Wood Shaft (Tapered)
     const shaftStart = tipDist + 7;
     const shaftGrad = ctx.createLinearGradient(-3.5, shaftStart, 3.5, shaftStart);
     shaftGrad.addColorStop(0, '#fef3c7');
@@ -1589,7 +1576,6 @@ export default function SnookongGame() {
     ctx.closePath();
     ctx.fill();
 
-    // 4. Ebony Butt
     const buttStart = shaftStart + shaftLen;
     const buttGrad = ctx.createLinearGradient(-5, buttStart, 5, buttStart);
     buttGrad.addColorStop(0, '#18181b');
@@ -1605,7 +1591,6 @@ export default function SnookongGame() {
     ctx.closePath();
     ctx.fill();
 
-    // 5. Rubber Bumper
     ctx.fillStyle = '#52525b';
     ctx.beginPath();
     ctx.roundRect(-4.8, buttStart + buttLen, 9.6, 4, 1.5);
@@ -1771,7 +1756,6 @@ Play on pottheblack.com/games/snookong`;
         paddingRight: 'max(0.4rem, env(safe-area-inset-right))'
       }}
     >
-      {/* 1. TOP HEADER */}
       <header className="w-full max-w-[420px] mx-auto flex items-center justify-between py-0.5 px-1 text-xs border-b border-neutral-800/80 shrink-0">
         <div className="flex items-center space-x-2">
           <Link
@@ -1820,7 +1804,6 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </header>
 
-      {/* 2. COMPACT DUAL STRIP HUD WITH ACTIVE + BEST BREAK TRACKING */}
       <div className="w-full max-w-[420px] mx-auto flex flex-col space-y-1 my-0.5 shrink-0">
         <div className="grid grid-cols-4 gap-1.5 text-center">
           <div className="bg-neutral-900/90 border border-neutral-800 rounded-md p-1 shadow-inner">
@@ -1875,10 +1858,6 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* Shot clock — pure CSS-driven countdown, remounted (via key) each
-          shot so the animation restarts cleanly. The actual timeout logic
-          lives in the physics loop and is authoritative; this bar is purely
-          visual feedback for it. */}
       {gameState === 'PLAYING' && (
         <div className="w-full h-1 bg-neutral-800/80 rounded-full overflow-hidden my-1">
           <div
@@ -1895,7 +1874,6 @@ Play on pottheblack.com/games/snookong`;
         }
       `}</style>
 
-      {/* 3. DYNAMIC CANVAS WRAPPER */}
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center my-0.5 overflow-hidden">
         <div className="relative h-full max-h-full aspect-[9/16] rounded-lg overflow-hidden shadow-2xl border border-neutral-800 bg-black flex items-center justify-center">
           <canvas
@@ -1986,7 +1964,6 @@ Play on pottheblack.com/games/snookong`;
         </div>
       </div>
 
-      {/* 4. PERSISTENT FIXED-HEIGHT DOCK */}
       <footer className="w-full max-w-[420px] mx-auto h-14 bg-neutral-900/95 border border-neutral-800 rounded-lg px-2 flex items-center justify-between shrink-0 shadow-xl backdrop-blur-md">
         {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND' || gameState === 'RE_AIM') ? (
           <div className="w-full flex items-center space-x-2">
@@ -2034,12 +2011,11 @@ Play on pottheblack.com/games/snookong`;
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Arrow Keys / Drag to steer
             </span>
-            <span className="text-neutral-500 text-[10px]">Edges cut steep spin</span>
+            <span className="text-neutral-500 text-[10px]">Rails compress wing for tight bank shots</span>
           </div>
         )}
       </footer>
 
-      {/* Rules Modal */}
       {showRulesModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-xl p-4 shadow-2xl relative">
@@ -2065,10 +2041,10 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-white">Lives:</strong> You have 3 lives. Lives are <strong>only lost</strong> when the cue ball slips past your paddle (drain) or scratches in-off into a pocket.
               </li>
               <li>
-                <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong>.
+                <strong className="text-emerald-400">Fouls & Resets:</strong> Any foul or scratch resets your current break, deducts penalty points, and returns your required target back to a <strong>Red</strong> (or the active clearance color once reds are gone).
               </li>
               <li>
-                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
+                <strong className="text-amber-400">Endgame:</strong> After all 10 reds are potted and the final corresponding color is scored, clear the 6 colors in regulation order: Yellow → Green → Brown → Blue → Pink → Black.
               </li>
             </ul>
 
