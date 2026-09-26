@@ -378,6 +378,41 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
+  // Distinct from the full victory fanfare — this marks "reds are done, it's
+  // colors time now", not "you won". Quicker, brighter, no final sustained
+  // chord, so it doesn't compete with the real victory moment later.
+  playPhaseTransition() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const notes = [660, 880, 1320];
+      notes.forEach((freq, idx) => {
+        const t = this.ctx.currentTime + idx * 0.07;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.19);
+      });
+
+      const shimmerStart = this.ctx.currentTime + notes.length * 0.07;
+      const shimmer = this.ctx.createOscillator();
+      const shimmerGain = this.ctx.createGain();
+      shimmer.type = 'sine';
+      shimmer.frequency.setValueAtTime(1760, shimmerStart);
+      shimmerGain.gain.setValueAtTime(0.14, shimmerStart);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.001, shimmerStart + 0.35);
+      shimmer.connect(shimmerGain);
+      shimmerGain.connect(this.ctx.destination);
+      shimmer.start(shimmerStart);
+      shimmer.stop(shimmerStart + 0.37);
+    } catch (e) {}
+  }
+
   playVictoryFanfare() {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -771,7 +806,8 @@ export default function SnookongGame() {
     updateAimAngle(0);
     if (message) {
       setPotToast(message);
-      setTimeout(() => setPotToast(null), 1400);
+      const readTime = Math.max(1400, message.length * 35);
+      setTimeout(() => setPotToast(null), readTime);
     }
   };
 
@@ -817,6 +853,7 @@ export default function SnookongGame() {
           if (engine.redsRemaining === 0) {
             engine.targetState = 'YELLOW';
             setTargetBallType('YELLOW');
+            soundRef.current.playPhaseTransition();
           } else {
             engine.targetState = 'ANY_COLOR';
             setTargetBallType('ANY_COLOR');
@@ -830,7 +867,7 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
           dockForReaim(
             engine.redsRemaining === 0
-              ? '🔴 Red potted — on to the colors!'
+              ? '🔴 Reds cleared! Colors in order: Yellow → Green → Brown → Blue → Pink → Black'
               : '🔴 Red potted — pick a colour'
           );
         } else {
@@ -925,6 +962,20 @@ export default function SnookongGame() {
       } catch (e) {}
     }
   }, [score, personalBest]);
+
+  // Safety net — the "Ball On" display should never be able to show RED once
+  // every red is gone. Every path that resets targetState is already guarded
+  // against this individually, but this effect makes it structurally
+  // impossible for the display to get stuck there regardless of cause,
+  // known or not: it self-corrects to the start of the clearance sequence
+  // the instant that impossible state is ever detected.
+  useEffect(() => {
+    if (redsLeft === 0 && targetBallType === 'RED') {
+      const engine = engineRef.current;
+      engine.targetState = 'YELLOW';
+      setTargetBallType('YELLOW');
+    }
+  }, [redsLeft, targetBallType]);
 
   // PC Keyboard Handling (Space, Enter, Arrow Keys, WASD)
   useEffect(() => {
