@@ -56,6 +56,12 @@ const KEYBOARD_PADDLE_SPEED = 8.5; // Smooth 60fps keyboard movement
 const FIXED_STEP_MS = 1000 / 60;
 const MAX_STEPS_PER_FRAME = 5;
 
+// Shot clock: how long a single shot gets before it's docked automatically.
+// Expressed in fixed simulation steps (not milliseconds) so it advances at
+// exactly the same rate the physics does — no separate timer to keep in sync.
+const SHOT_TIME_SECONDS = 10;
+const SHOT_TIME_STEPS = Math.round((SHOT_TIME_SECONDS * 1000) / FIXED_STEP_MS);
+
 const SNOOKER_COLORS = {
   RED: { name: 'Red', value: 1, hex: '#e11d48', darkHex: '#881337', specular: '#fda4af' },
   YELLOW: { name: 'Yellow', value: 2, hex: '#eab308', darkHex: '#854d0e', specular: '#fef08a' },
@@ -308,6 +314,23 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
+  playShotClockTick(urgent = false) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(urgent ? 1400 : 1100, now);
+      gain.gain.setValueAtTime(urgent ? 0.14 : 0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } catch (e) {}
+  }
+
   playFoulBuzzer() {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -423,6 +446,7 @@ export default function SnookongGame() {
   const [personalBest, setPersonalBest] = useState(0);
   const [isNewBest, setIsNewBest] = useState(false);
   const [potToast, setPotToast] = useState(null);
+  const [shotClockKey, setShotClockKey] = useState(0);
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
 
   const keysPressed = useRef({ left: false, right: false });
@@ -605,6 +629,8 @@ export default function SnookongGame() {
     engine.cueBall.potted = false;
     engine.cueBall.scale = 1.0;
     engine.consecutiveSideBounces = 0;
+    engine.shotClockSteps = 0;
+    engine.lastTickSecond = null;
 
     if (engine.gameState === 'BREAK_AIM') {
       soundRef.current.playBreakExplosion();
@@ -616,6 +642,7 @@ export default function SnookongGame() {
 
     engine.gameState = 'PLAYING';
     setGameState('PLAYING');
+    setShotClockKey((k) => k + 1);
   }, []);
 
   const restartGame = () => {
@@ -1006,126 +1033,144 @@ export default function SnookongGame() {
         cue.vy = 0;
         cue.active = false;
       } else if (cue.active) {
-        if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
-          const dir = cue.vy >= 0 ? 1 : -1;
-          cue.vy = dir * MIN_VERTICAL_VELOCITY;
+        // Shot clock: counted in fixed simulation steps rather than wall-clock
+        // time, so it's exactly as consistent as the rest of the physics —
+        // no drift from frame rate. If a shot runs out the clock without
+        // potting or fouling, it's docked neutrally (no penalty) so a long
+        // stretch of aimless bouncing can't drag on forever.
+        engine.shotClockSteps = (engine.shotClockSteps || 0) + 1;
+        const shotTimedOut = engine.shotClockSteps > SHOT_TIME_STEPS;
+        const stepsRemaining = SHOT_TIME_STEPS - engine.shotClockSteps;
+        const secondsRemaining = Math.ceil(stepsRemaining / (1000 / FIXED_STEP_MS));
+        if (secondsRemaining <= 3 && secondsRemaining >= 1 && secondsRemaining !== engine.lastTickSecond) {
+          engine.lastTickSecond = secondsRemaining;
+          soundRef.current.playShotClockTick(secondsRemaining === 1);
         }
 
-        const speedNow = Math.hypot(cue.vx, cue.vy);
-        if (speedNow > 0.001) {
-          cue.vx = (cue.vx / speedNow) * CUE_SPEED;
-          cue.vy = (cue.vy / speedNow) * CUE_SPEED;
-        }
-
-        // Sub-stepped movement (Continuous Collision Detection): the paddle
-        // is only 14px thick, and moving the ball in one single jump per tick
-        // risks it landing fully past the paddle's y-range without the
-        // interception check ever seeing it "inside" the paddle — that's
-        // tunneling. Splitting the tick's movement into several smaller
-        // moves, each no bigger than the ball's radius, guarantees the ball
-        // can't skip over something as thin as the paddle between checks.
-        const tickDistance = Math.hypot(cue.vx, cue.vy);
-        const maxSafeStep = Math.min(BALL_RADIUS, PADDLE_HEIGHT / 2);
-        const subSteps = Math.max(1, Math.ceil(tickDistance / maxSafeStep));
-        const subVx = cue.vx / subSteps;
-        const subVy = cue.vy / subSteps;
-
-        let stateChangedThisTick = false;
-
-        for (let s = 0; s < subSteps && !stateChangedThisTick; s++) {
-          cue.x += subVx;
-          cue.y += subVy;
-
-          // Left Cushion Rebound
-          if (cue.x - cue.radius <= CUSHION_WIDTH) {
-            cue.x = CUSHION_WIDTH + cue.radius;
-            cue.vx = Math.abs(cue.vx);
-            engine.consecutiveSideBounces += 1;
-
-            if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
-              const tilt = cue.y < 420 ? 1.5 : -1.5;
-              cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
-            }
-            soundRef.current.playCushionThud();
+        if (shotTimedOut) {
+          dockForReaim("⏱️ Time's up — take aim again");
+        } else {
+          if (Math.abs(cue.vy) < MIN_VERTICAL_VELOCITY) {
+            const dir = cue.vy >= 0 ? 1 : -1;
+            cue.vy = dir * MIN_VERTICAL_VELOCITY;
           }
-          // Right Cushion Rebound
-          else if (cue.x + cue.radius >= V_WIDTH - CUSHION_WIDTH) {
-            cue.x = V_WIDTH - CUSHION_WIDTH - cue.radius;
-            cue.vx = -Math.abs(cue.vx);
-            engine.consecutiveSideBounces += 1;
-
-            if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
-              const tilt = cue.y < 420 ? 1.5 : -1.5;
-              cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
-            }
-            soundRef.current.playCushionThud();
+  
+          const speedNow = Math.hypot(cue.vx, cue.vy);
+          if (speedNow > 0.001) {
+            cue.vx = (cue.vx / speedNow) * CUE_SPEED;
+            cue.vy = (cue.vy / speedNow) * CUE_SPEED;
           }
-
-          // Top Cushion Rebound
-          if (cue.y - cue.radius <= CUSHION_WIDTH) {
-            cue.y = CUSHION_WIDTH + cue.radius;
-            cue.vy = Math.abs(cue.vy);
-            engine.consecutiveSideBounces = 0;
-            soundRef.current.playCushionThud();
-          }
-
-          // Paddle Interception — checked every sub-step, not just once per tick
-          const paddleTop = paddle.y - paddle.height / 2;
-          const paddleBottom = paddle.y + paddle.height / 2;
-          const paddleLeft = paddle.x - paddle.width / 2;
-          const paddleRight = paddle.x + paddle.width / 2;
-
-          if (
-            cue.vy > 0 &&
-            cue.y + cue.radius >= paddleTop &&
-            cue.y - cue.radius <= paddleBottom &&
-            cue.x >= paddleLeft - 10 &&
-            cue.x <= paddleRight + 10
-          ) {
-            cue.y = paddleTop - cue.radius;
-            engine.consecutiveSideBounces = 0;
-
-            const hitOffset = (cue.x - paddle.x) / (paddle.width / 2);
-            const maxBounceAngle = (64 * Math.PI) / 180;
-            const bounceAngle = hitOffset * maxBounceAngle - Math.PI / 2;
-
-            cue.vx = Math.cos(bounceAngle) * CUE_SPEED + paddle.vx * 0.2;
-            cue.vy = Math.sin(bounceAngle) * CUE_SPEED;
-
-            if (cue.vy > -1.5) cue.vy = -1.5;
-            soundRef.current.playCushionThud();
-            // Velocity just changed — the remaining sub-steps this tick were
-            // computed from the old direction, so stop here rather than
-            // keep moving along a trajectory that's no longer correct.
-            stateChangedThisTick = true;
-          }
-
-          // Drain past paddle
-          if (!stateChangedThisTick && cue.y - cue.radius > V_HEIGHT - 10) {
-            handleCriticalScratch('Drained past paddle!');
-            stateChangedThisTick = true;
-          }
-
-          // In-Off Pocket Scratch
-          if (!stateChangedThisTick) {
-            engine.pockets.forEach(pocket => {
-              if (stateChangedThisTick) return;
-              const toPocketX = pocket.x - cue.x;
-              const toPocketY = pocket.y - cue.y;
-              const dist = Math.hypot(toPocketX, toPocketY);
-              if (dist < CUE_POCKET_CAPTURE) {
-                // Normalized approach — only counts if the cue ball is
-                // genuinely heading into the mouth (cos of the angle between
-                // velocity and the to-pocket vector), not just clipping past
-                // it at a shallow, glancing angle.
-                const speedNow2 = Math.hypot(cue.vx, cue.vy) || 1;
-                const approachCos = (cue.vx * toPocketX + cue.vy * toPocketY) / ((dist || 1) * speedNow2);
-                if (approachCos > 0.25) {
-                  handleCriticalScratch('Pocket Scratch!');
-                  stateChangedThisTick = true;
-                }
+  
+          // Sub-stepped movement (Continuous Collision Detection): the paddle
+          // is only 14px thick, and moving the ball in one single jump per tick
+          // risks it landing fully past the paddle's y-range without the
+          // interception check ever seeing it "inside" the paddle — that's
+          // tunneling. Splitting the tick's movement into several smaller
+          // moves, each no bigger than the ball's radius, guarantees the ball
+          // can't skip over something as thin as the paddle between checks.
+          const tickDistance = Math.hypot(cue.vx, cue.vy);
+          const maxSafeStep = Math.min(BALL_RADIUS, PADDLE_HEIGHT / 2);
+          const subSteps = Math.max(1, Math.ceil(tickDistance / maxSafeStep));
+          const subVx = cue.vx / subSteps;
+          const subVy = cue.vy / subSteps;
+  
+          let stateChangedThisTick = false;
+  
+          for (let s = 0; s < subSteps && !stateChangedThisTick; s++) {
+            cue.x += subVx;
+            cue.y += subVy;
+  
+            // Left Cushion Rebound
+            if (cue.x - cue.radius <= CUSHION_WIDTH) {
+              cue.x = CUSHION_WIDTH + cue.radius;
+              cue.vx = Math.abs(cue.vx);
+              engine.consecutiveSideBounces += 1;
+  
+              if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
+                const tilt = cue.y < 420 ? 1.5 : -1.5;
+                cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
               }
-            });
+              soundRef.current.playCushionThud();
+            }
+            // Right Cushion Rebound
+            else if (cue.x + cue.radius >= V_WIDTH - CUSHION_WIDTH) {
+              cue.x = V_WIDTH - CUSHION_WIDTH - cue.radius;
+              cue.vx = -Math.abs(cue.vx);
+              engine.consecutiveSideBounces += 1;
+  
+              if (engine.consecutiveSideBounces >= 2 || Math.abs(cue.vy) < 1.3) {
+                const tilt = cue.y < 420 ? 1.5 : -1.5;
+                cue.vy = (cue.vy >= 0 ? 1 : -1) * Math.max(1.3, Math.abs(cue.vy)) + tilt * 0.2;
+              }
+              soundRef.current.playCushionThud();
+            }
+  
+            // Top Cushion Rebound
+            if (cue.y - cue.radius <= CUSHION_WIDTH) {
+              cue.y = CUSHION_WIDTH + cue.radius;
+              cue.vy = Math.abs(cue.vy);
+              engine.consecutiveSideBounces = 0;
+              soundRef.current.playCushionThud();
+            }
+  
+            // Paddle Interception — checked every sub-step, not just once per tick
+            const paddleTop = paddle.y - paddle.height / 2;
+            const paddleBottom = paddle.y + paddle.height / 2;
+            const paddleLeft = paddle.x - paddle.width / 2;
+            const paddleRight = paddle.x + paddle.width / 2;
+  
+            if (
+              cue.vy > 0 &&
+              cue.y + cue.radius >= paddleTop &&
+              cue.y - cue.radius <= paddleBottom &&
+              cue.x >= paddleLeft - 10 &&
+              cue.x <= paddleRight + 10
+            ) {
+              cue.y = paddleTop - cue.radius;
+              engine.consecutiveSideBounces = 0;
+  
+              const hitOffset = (cue.x - paddle.x) / (paddle.width / 2);
+              const maxBounceAngle = (64 * Math.PI) / 180;
+              const bounceAngle = hitOffset * maxBounceAngle - Math.PI / 2;
+  
+              cue.vx = Math.cos(bounceAngle) * CUE_SPEED + paddle.vx * 0.2;
+              cue.vy = Math.sin(bounceAngle) * CUE_SPEED;
+  
+              if (cue.vy > -1.5) cue.vy = -1.5;
+              soundRef.current.playCushionThud();
+              // Velocity just changed — the remaining sub-steps this tick were
+              // computed from the old direction, so stop here rather than
+              // keep moving along a trajectory that's no longer correct.
+              stateChangedThisTick = true;
+            }
+  
+            // Drain past paddle
+            if (!stateChangedThisTick && cue.y - cue.radius > V_HEIGHT - 10) {
+              handleCriticalScratch('Drained past paddle!');
+              stateChangedThisTick = true;
+            }
+  
+            // In-Off Pocket Scratch
+            if (!stateChangedThisTick) {
+              engine.pockets.forEach(pocket => {
+                if (stateChangedThisTick) return;
+                const toPocketX = pocket.x - cue.x;
+                const toPocketY = pocket.y - cue.y;
+                const dist = Math.hypot(toPocketX, toPocketY);
+                if (dist < CUE_POCKET_CAPTURE) {
+                  // Normalized approach — only counts if the cue ball is
+                  // genuinely heading into the mouth (cos of the angle between
+                  // velocity and the to-pocket vector), not just clipping past
+                  // it at a shallow, glancing angle.
+                  const speedNow2 = Math.hypot(cue.vx, cue.vy) || 1;
+                  const approachCos = (cue.vx * toPocketX + cue.vy * toPocketY) / ((dist || 1) * speedNow2);
+                  if (approachCos > 0.25) {
+                    handleCriticalScratch('Pocket Scratch!');
+                    stateChangedThisTick = true;
+                  }
+                }
+              });
+            }
           }
         }
       }
@@ -1741,6 +1786,26 @@ Play on pottheblack.com/games/snookong`;
           </div>
         </div>
       </div>
+
+      {/* Shot clock — pure CSS-driven countdown, remounted (via key) each
+          shot so the animation restarts cleanly. The actual timeout logic
+          lives in the physics loop and is authoritative; this bar is purely
+          visual feedback for it. */}
+      {gameState === 'PLAYING' && (
+        <div className="w-full h-1 bg-neutral-800/80 rounded-full overflow-hidden my-1">
+          <div
+            key={shotClockKey}
+            className="h-full bg-gradient-to-r from-amber-400 to-rose-500 rounded-full"
+            style={{ width: '100%', animation: `shotclock-shrink ${SHOT_TIME_SECONDS}s linear forwards` }}
+          />
+        </div>
+      )}
+      <style>{`
+        @keyframes shotclock-shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
 
       {/* 3. DYNAMIC CANVAS WRAPPER */}
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center my-0.5 overflow-hidden">
