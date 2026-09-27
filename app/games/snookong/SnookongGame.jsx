@@ -438,9 +438,6 @@ class RealisticSoundEngine {
         osc.stop(t + 0.25);
 
         const harmOsc = this.ctx.createOscillator();
-        const harmGain = this.ctx.createGain();
-        harmOsc.type = 'sine';
-        harmOsc.frequency.setValueAtTime(freq * 1.5, t);
         harmGain.gain.setValueAtTime(0.1, t);
         harmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
         harmOsc.connect(harmGain);
@@ -498,6 +495,7 @@ export default function SnookongGame() {
     consecutiveSideBounces: 0,
     firstContactMade: false,
     shotHadLegalContact: false,
+    currentShotTarget: 'RED',
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -538,6 +536,10 @@ export default function SnookongGame() {
     isBreakShot: true,
     potLog: []
   });
+
+  const countActiveReds = useCallback((engine) => {
+    return engine.balls.filter(b => b.type === 'RED' && !b.isPotted).length;
+  }, []);
 
   const setupRack = useCallback(() => {
     const engine = engineRef.current;
@@ -644,6 +646,7 @@ export default function SnookongGame() {
     engine.consecutiveSideBounces = 0;
     engine.firstContactMade = false;
     engine.shotHadLegalContact = false;
+    engine.currentShotTarget = 'RED';
     engine.targetState = 'RED';
     engine.clearanceIndex = 0;
     engine.redsRemaining = 10;
@@ -682,6 +685,7 @@ export default function SnookongGame() {
     engine.lastTickSecond = null;
     engine.firstContactMade = false;
     engine.shotHadLegalContact = false;
+    engine.currentShotTarget = engine.targetState;
 
     if (engine.gameState === 'BREAK_AIM') {
       soundRef.current.playBreakExplosion();
@@ -752,18 +756,18 @@ export default function SnookongGame() {
     engine.score = Math.max(0, engine.score - penalty);
     engine.currentBreak = 0;
 
-    if (engine.phase === 'CLEARANCE') {
+    const actualReds = countActiveReds(engine);
+    engine.redsRemaining = actualReds;
+    setRedsLeft(actualReds);
+
+    if (engine.phase === 'CLEARANCE' || actualReds === 0) {
+      engine.phase = 'CLEARANCE';
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = nextTarget;
       setTargetBallType(nextTarget);
-    } else if (engine.redsRemaining > 0) {
+    } else {
       engine.targetState = 'RED';
       setTargetBallType('RED');
-    } else {
-      engine.phase = 'CLEARANCE';
-      engine.clearanceIndex = 0;
-      engine.targetState = 'YELLOW';
-      setTargetBallType('YELLOW');
     }
 
     setScore(engine.score);
@@ -783,18 +787,18 @@ export default function SnookongGame() {
     engine.firstContactMade = false;
     engine.shotHadLegalContact = false;
 
-    if (engine.phase === 'CLEARANCE') {
+    const actualReds = countActiveReds(engine);
+    engine.redsRemaining = actualReds;
+    setRedsLeft(actualReds);
+
+    if (engine.phase === 'CLEARANCE' || actualReds === 0) {
+      engine.phase = 'CLEARANCE';
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = nextTarget;
       setTargetBallType(nextTarget);
-    } else if (engine.redsRemaining > 0) {
+    } else {
       engine.targetState = 'RED';
       setTargetBallType('RED');
-    } else {
-      engine.phase = 'CLEARANCE';
-      engine.clearanceIndex = 0;
-      engine.targetState = 'YELLOW';
-      setTargetBallType('YELLOW');
     }
 
     setScore(engine.score);
@@ -874,6 +878,11 @@ export default function SnookongGame() {
     soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1);
     spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
 
+    // Immediate authoritative update of active reds remaining on the table
+    const actualReds = countActiveReds(engine);
+    engine.redsRemaining = actualReds;
+    setRedsLeft(actualReds);
+
     // 1. REGULATION COLOR CLEARANCE PHASE
     if (engine.phase === 'CLEARANCE') {
       const expectedType = CLEARANCE_SEQUENCE[engine.clearanceIndex];
@@ -925,7 +934,6 @@ export default function SnookongGame() {
         if (engine.currentBreak > engine.highestBreak) {
           engine.highestBreak = engine.currentBreak;
         }
-        engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
         engine.potLog.push('🔴');
         soundRef.current.speakReferee(String(engine.currentBreak));
 
@@ -935,11 +943,10 @@ export default function SnookongGame() {
         setScore(engine.score);
         setCurrentBreak(engine.currentBreak);
         setHighestBreak(engine.highestBreak);
-        setRedsLeft(engine.redsRemaining);
         setHistoryPots([...engine.potLog]);
 
         dockForReaim(
-          engine.redsRemaining === 0
+          actualReds === 0
             ? '🔴 Final red potted — nominate any colour'
             : '🔴 Red potted — pick a colour'
         );
@@ -962,7 +969,7 @@ export default function SnookongGame() {
 
         respotBall(ball);
 
-        if (engine.redsRemaining > 0) {
+        if (actualReds > 0) {
           engine.targetState = 'RED';
           setTargetBallType('RED');
           setScore(engine.score);
@@ -971,6 +978,7 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
         } else {
+          // Zero physical reds left: Begin clearance on Yellow immediately
           engine.phase = 'CLEARANCE';
           engine.clearanceIndex = 0;
           engine.targetState = 'YELLOW';
@@ -983,21 +991,22 @@ export default function SnookongGame() {
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
         }
       } else {
-        if (engine.gameState === 'RE_AIM' && engine.redsRemaining > 0) {
+        // Red entered pocket while on ANY_COLOR.
+        // If this shot was fired at RED (e.g. secondary red from pack split), award legal point
+        if (engine.currentShotTarget === 'RED') {
           engine.score += 1;
           engine.currentBreak += 1;
           if (engine.currentBreak > engine.highestBreak) {
             engine.highestBreak = engine.currentBreak;
           }
-          engine.redsRemaining = Math.max(0, engine.redsRemaining - 1);
           engine.potLog.push('🔴');
           soundRef.current.speakReferee(String(engine.currentBreak));
           setScore(engine.score);
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
-          setRedsLeft(engine.redsRemaining);
           setHistoryPots([...engine.potLog]);
         } else {
+          // Genuine foul: potted red when aiming at a color
           triggerFoulPenalty('Potted RED on COLOR', 4);
           dockForReaim('Foul (-4) — potted red on colour');
         }
@@ -1038,15 +1047,17 @@ export default function SnookongGame() {
     }
   }, [score, personalBest]);
 
+  // Fail-safe assertion: Ensure targetBallType can NEVER be RED if no reds remain
   useEffect(() => {
-    if (redsLeft === 0 && targetBallType === 'RED') {
-      const engine = engineRef.current;
+    const engine = engineRef.current;
+    const actualReds = countActiveReds(engine);
+    if (actualReds === 0 && (targetBallType === 'RED' || engine.targetState === 'RED')) {
       engine.phase = 'CLEARANCE';
       const target = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = target;
       setTargetBallType(target);
     }
-  }, [redsLeft, targetBallType]);
+  }, [redsLeft, targetBallType, countActiveReds]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1129,8 +1140,6 @@ export default function SnookongGame() {
       pointerStartRef.current.isDrag = true;
     }
 
-    // On PC (mouse), hover movement directly steers the paddle without requiring click
-    // On touch, dragging your finger steers the paddle across the baulk line
     if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.buttons > 0) {
       updatePaddlePositionFromClientX(e.clientX);
     }
@@ -1148,7 +1157,6 @@ export default function SnookongGame() {
     const dy = e.clientY - pointerStartRef.current.y;
     const dist = Math.hypot(dx, dy);
 
-    // Left mouse click or tap on mobile (not a drag) fires the shot
     const isClickOrTap = !pointerStartRef.current.isDrag && dist < 14 && duration < 600;
 
     if (isAimingState() && isClickOrTap) {
@@ -1176,6 +1184,19 @@ export default function SnookongGame() {
     const stepSimulation = () => {
       const engine = engineRef.current;
       const paddle = engine.paddle;
+
+      // Ground-truth assertion running on physics loop
+      const liveReds = countActiveReds(engine);
+      if (engine.redsRemaining !== liveReds) {
+        engine.redsRemaining = liveReds;
+        setRedsLeft(liveReds);
+      }
+      if (liveReds === 0 && (engine.targetState === 'RED' || targetBallType === 'RED')) {
+        engine.phase = 'CLEARANCE';
+        const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
+        engine.targetState = nextTarget;
+        setTargetBallType(nextTarget);
+      }
 
       const minX = CUSHION_WIDTH + BALL_RADIUS + 3;
       const maxX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS - 3;
@@ -1567,7 +1588,7 @@ export default function SnookongGame() {
 
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [setupRack]);
+  }, [setupRack, countActiveReds, targetBallType]);
 
   const drawCanvas = (ctx, engine) => {
     ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
