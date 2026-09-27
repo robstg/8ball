@@ -489,6 +489,7 @@ export default function SnookongGame() {
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
 
   const keysPressed = useRef({ left: false, right: false });
+  const pointerStartRef = useRef({ x: 0, y: 0, time: 0, isDrag: false });
 
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
@@ -1099,21 +1100,67 @@ export default function SnookongGame() {
     engineRef.current.paddle.targetX = Math.max(minX, Math.min(maxX, canvasX));
   };
 
-  const handlePointerDown = (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    updatePaddlePositionFromClientX(e.clientX);
+  const isAimingState = () => {
+    const st = engineRef.current.gameState;
+    return st === 'BREAK_AIM' || st === 'BALL_IN_HAND' || st === 'RE_AIM';
   };
 
-  const handlePointerMove = (e) => {
-    if (e.buttons > 0 || e.pointerType === 'touch') {
+  const handlePointerDown = (e) => {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
+
+    pointerStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+      isDrag: false
+    };
+
+    if (e.pointerType === 'touch') {
       updatePaddlePositionFromClientX(e.clientX);
     }
   };
 
-  const handlePointerUp = () => {
-    const engine = engineRef.current;
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
+  const handlePointerMove = (e) => {
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    if (Math.hypot(dx, dy) > 10) {
+      pointerStartRef.current.isDrag = true;
+    }
+
+    // On PC (mouse), hover movement directly steers the paddle without requiring click
+    // On touch, dragging your finger steers the paddle across the baulk line
+    if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.buttons > 0) {
+      updatePaddlePositionFromClientX(e.clientX);
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
+
+    const duration = Date.now() - pointerStartRef.current.time;
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    const dist = Math.hypot(dx, dy);
+
+    // Left mouse click or tap on mobile (not a drag) fires the shot
+    const isClickOrTap = !pointerStartRef.current.isDrag && dist < 14 && duration < 600;
+
+    if (isAimingState() && isClickOrTap) {
       fireShot();
+    }
+  };
+
+  const handleWheel = (e) => {
+    if (isAimingState()) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 2 : -2;
+      updateAimAngle(engineRef.current.aimOffsetDeg + delta);
     }
   };
 
@@ -1343,7 +1390,6 @@ export default function SnookongGame() {
 
       // Cue Ball to Object Ball Collisions & Foul Tracking
       if (cue.active) {
-        // Collect all colliding balls in this tick to resolve array-index bias
         const activeTarget = engine.phase === 'CLEARANCE'
           ? CLEARANCE_SEQUENCE[engine.clearanceIndex]
           : engine.targetState;
@@ -1361,7 +1407,6 @@ export default function SnookongGame() {
           }
         }
 
-        // If multiple balls are contacted simultaneously, prioritize the legal ball on
         if (collisions.length > 1) {
           collisions.sort((a, b) => {
             const aIsTarget = (activeTarget === 'ANY_COLOR' && a.ball.type !== 'RED') || a.ball.type === activeTarget;
@@ -1388,8 +1433,6 @@ export default function SnookongGame() {
 
             engine.consecutiveSideBounces = 0;
 
-            // FIRST-CONTACT FOUL CHECK
-            // If legal contact was already made on this shot, secondary cannons/caroms are completely legal!
             if (!engine.firstContactMade) {
               engine.firstContactMade = true;
               let isLegalContact = true;
@@ -2002,6 +2045,7 @@ Play on pottheblack.com/games/snookong`;
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onWheel={handleWheel}
             className="w-full h-full object-contain block cursor-crosshair touch-none"
           />
 
@@ -2091,7 +2135,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg - 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="-5° (Down Arrow / S)"
+                title="-5° (Down Arrow / S / Wheel Down)"
               >
                 <Minus size={13} />
               </button>
@@ -2106,7 +2150,7 @@ Play on pottheblack.com/games/snookong`;
                 type="button"
                 onClick={() => updateAimAngle(aimOffsetDeg + 5)}
                 className="w-8 h-9 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 rounded font-semibold flex items-center justify-center border border-neutral-700"
-                title="+5° (Up Arrow / W)"
+                title="+5° (Up Arrow / W / Wheel Up)"
               >
                 <Plus size={13} />
               </button>
@@ -2120,7 +2164,7 @@ Play on pottheblack.com/games/snookong`;
               <Zap size={14} className="fill-neutral-950" />
               <span>{gameState === 'BREAK_AIM' ? 'FIRE BREAK' : 'STRIKE CUE'}</span>
               <span className="text-[9px] bg-neutral-950/20 px-1 py-0.5 rounded font-bold">
-                ENTER / SPACE
+                TAP / CLICK / SPACE
               </span>
             </button>
           </div>
@@ -2128,7 +2172,7 @@ Play on pottheblack.com/games/snookong`;
           <div className="w-full flex items-center justify-between px-2 text-[11px] text-neutral-400">
             <span className="flex items-center gap-1.5 text-neutral-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Arrow Keys / Drag to steer
+              Move mouse / Drag finger to steer
             </span>
             <span className="text-neutral-500 text-[10px]">First contact must hit ball on</span>
           </div>
@@ -2151,7 +2195,7 @@ Play on pottheblack.com/games/snookong`;
             
             <ul className="text-[11px] text-neutral-300 space-y-2 list-disc pl-4 leading-relaxed">
               <li>
-                <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
+                <strong className="text-amber-400">Controls:</strong> On mobile, drag to steer and tap anywhere on the table to strike. On PC, move the mouse or use <code className="text-amber-300">Left / Right / A / D</code> to steer, roll the mouse wheel or use <code className="text-amber-300">Up / Down / W / S</code> to aim, and <strong>Left-Click</strong> or press <code className="text-amber-300">Spacebar / Enter</code> to fire.
               </li>
               <li>
                 <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on. Once legal first contact is established, secondary cannons into other balls are completely legal.
