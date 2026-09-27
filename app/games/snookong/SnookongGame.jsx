@@ -52,6 +52,7 @@ const SNOOKER_COLORS = {
   BLUE: { name: 'Blue', value: 5, hex: '#2563eb', darkHex: '#1e3a8a', specular: '#bfdbfe' },
   PINK: { name: 'Pink', value: 6, hex: '#ec4899', darkHex: '#831843', specular: '#fbcfe8' },
   BLACK: { name: 'Black', value: 7, hex: '#18181b', darkHex: '#09090b', specular: '#71717a' },
+  GOLD: { name: 'Golden Ball', value: 20, hex: '#fbbf24', darkHex: '#78350f', specular: '#fffbeb' },
   WHITE: { name: 'Cue Ball', value: 0, hex: '#f8fafc', darkHex: '#94a3b8', specular: '#ffffff' }
 };
 
@@ -63,6 +64,8 @@ const COLOR_SPOTS = {
   GREEN: { x: 155, y: 620 },
   YELLOW: { x: 295, y: 620 }
 };
+
+const GOLD_SPOT = { x: 225, y: 54 };
 
 const CLEARANCE_SEQUENCE = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
@@ -387,6 +390,26 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
+  playBoxingBell() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [0, 0.22, 0.44].forEach((delay) => {
+        const t = now + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1864.66, t);
+        gain.gain.setValueAtTime(0.38, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.4);
+      });
+    } catch (e) {}
+  }
+
   playPhaseTransition() {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -472,6 +495,7 @@ export default function SnookongGame() {
   const [currentBreak, setCurrentBreak] = useState(0);
   const [highestBreak, setHighestBreak] = useState(0);
   const [lives, setLives] = useState(3);
+  const [round, setRound] = useState(1);
   const [targetBallType, setTargetBallType] = useState('RED'); 
   const [redsLeft, setRedsLeft] = useState(10);
   const [gameState, setGameState] = useState('BREAK_AIM');
@@ -491,11 +515,13 @@ export default function SnookongGame() {
   const engineRef = useRef({
     gameState: 'BREAK_AIM',
     phase: 'REDS',
+    round: 1,
     aimOffsetDeg: 0,
-    consecutiveSideBounces: 0,
+    consecutiveSideBounces = 0,
     firstContactMade: false,
     shotHadLegalContact: false,
     currentShotTarget: 'RED',
+    ringGirlWalkProgress: 0,
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -541,10 +567,14 @@ export default function SnookongGame() {
     return engine.balls.filter(b => b.type === 'RED' && !b.isPotted).length;
   }, []);
 
-  const setupRack = useCallback(() => {
+  const setupRack = useCallback((targetRound = 1) => {
     const engine = engineRef.current;
+    engine.round = targetRound;
+    setRound(targetRound);
+
     const balls = [];
 
+    // Official 6 Regulation Colors
     Object.entries(COLOR_SPOTS).forEach(([colorKey, spot]) => {
       balls.push({
         id: colorKey.toLowerCase(),
@@ -561,6 +591,24 @@ export default function SnookongGame() {
       });
     });
 
+    // ROUND 2+ BONUS: The 20-Point Golden Ball
+    if (targetRound >= 2) {
+      balls.push({
+        id: 'gold-bonus',
+        type: 'GOLD',
+        x: GOLD_SPOT.x,
+        y: GOLD_SPOT.y,
+        vx: 0,
+        vy: 0,
+        radius: BALL_RADIUS,
+        isColor: true,
+        isPotted: false,
+        scale: 1.0,
+        spot: { ...GOLD_SPOT }
+      });
+    }
+
+    // 10 Reds Pyramid
     const rDist = BALL_RADIUS * 2.05;
     const rowOffset = rDist * 0.866;
     const startX = 225;
@@ -652,20 +700,36 @@ export default function SnookongGame() {
     engine.redsRemaining = 10;
     engine.particles = [];
     engine.isBreakShot = true;
-    engine.potLog = [];
 
     setAimOffsetDeg(0);
     setRedsLeft(10);
     setTargetBallType('RED');
-    setHistoryPots([]);
     setFoulBanner(null);
     setGameState('BREAK_AIM');
   }, []);
+
+  const startNextRound = useCallback(() => {
+    const nextRound = engineRef.current.round + 1;
+    setupRack(nextRound);
+    soundRef.current.playPhaseTransition();
+    setPotToast(
+      nextRound >= 2 
+        ? `🔥 ROUND ${nextRound}: THE GOLDEN BALL (+20) IS IN PLAY!` 
+        : `🔥 ROUND ${nextRound} BEGINS!`
+    );
+    setTimeout(() => setPotToast(null), 3000);
+  }, [setupRack]);
 
   const fireShot = useCallback(() => {
     soundRef.current.init();
     const engine = engineRef.current;
     
+    // Clicking during round girl parade skips straight to next round
+    if (engine.gameState === 'ROUND_WALK') {
+      startNextRound();
+      return;
+    }
+
     if (engine.gameState !== 'BREAK_AIM' && engine.gameState !== 'BALL_IN_HAND' && engine.gameState !== 'RE_AIM') {
       return;
     }
@@ -698,11 +762,11 @@ export default function SnookongGame() {
     engine.gameState = 'PLAYING';
     setGameState('PLAYING');
     setShotClockKey((k) => k + 1);
-  }, []);
+  }, [startNextRound]);
 
   const restartGame = () => {
     const engine = engineRef.current;
-    setupRack();
+    setupRack(1);
     engine.score = 0;
     engine.currentBreak = 0;
     engine.highestBreak = 0;
@@ -711,6 +775,7 @@ export default function SnookongGame() {
     setCurrentBreak(0);
     setHighestBreak(0);
     setLives(3);
+    setHistoryPots([]);
     setFoulBanner(null);
     setIsNewBest(false);
   };
@@ -733,18 +798,18 @@ export default function SnookongGame() {
 
   const spawnParticles = (x, y, color) => {
     const engine = engineRef.current;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 14; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 1.2 + Math.random() * 2.8;
+      const speed = 1.2 + Math.random() * 3.0;
       engine.particles.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        radius: 2 + Math.random() * 2,
+        radius: 2 + Math.random() * 2.5,
         color,
         alpha: 1.0,
-        decay: 0.025 + Math.random() * 0.02
+        decay: 0.022 + Math.random() * 0.02
       });
     }
   };
@@ -830,6 +895,8 @@ export default function SnookongGame() {
 
   const dockForReaim = (message) => {
     const engine = engineRef.current;
+    if (engine.gameState === 'ROUND_WALK' || engine.gameState === 'GAMEOVER') return;
+
     engine.cueBall.active = false;
     engine.cueBall.potted = false;
     engine.cueBall.scale = 1.0;
@@ -878,7 +945,6 @@ export default function SnookongGame() {
     soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1);
     spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
 
-    // Immediate authoritative update of active reds remaining on the table
     const actualReds = countActiveReds(engine);
     engine.redsRemaining = actualReds;
     setRedsLeft(actualReds);
@@ -902,15 +968,23 @@ export default function SnookongGame() {
         setHighestBreak(engine.highestBreak);
         setHistoryPots([...engine.potLog]);
 
+        // CHECK IF ALL 6 COLORS ARE CLEARED -> INITIATE BIKINI RING GIRL PARADE!
         if (engine.clearanceIndex >= CLEARANCE_SEQUENCE.length) {
-          soundRef.current.playVictoryFanfare();
-          if (engine.highestBreak === 147) {
-            soundRef.current.speakReferee('One hundred and forty-seven. Frame and match.');
-          } else {
-            soundRef.current.speakReferee('Frame and match.');
-          }
-          engine.gameState = 'VICTORY';
-          setGameState('VICTORY');
+          engine.cueBall.active = false;
+          engine.cueBall.vx = 0;
+          engine.cueBall.vy = 0;
+          engine.cueBall.potted = true;
+
+          // Sound celebration
+          soundRef.current.playBoxingBell();
+          const nextRnd = engine.round + 1;
+          soundRef.current.speakReferee(`End of round ${engine.round}. Round ${nextRnd}!`);
+
+          // Transition to Ring Girl Lap
+          engine.gameState = 'ROUND_WALK';
+          engine.ringGirlWalkProgress = 0;
+          setGameState('ROUND_WALK');
+          return;
         } else {
           const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex];
           engine.targetState = nextTarget;
@@ -978,7 +1052,6 @@ export default function SnookongGame() {
           setHistoryPots([...engine.potLog]);
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
         } else {
-          // Zero physical reds left: Begin clearance on Yellow immediately
           engine.phase = 'CLEARANCE';
           engine.clearanceIndex = 0;
           engine.targetState = 'YELLOW';
@@ -991,8 +1064,6 @@ export default function SnookongGame() {
           dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
         }
       } else {
-        // Red entered pocket while on ANY_COLOR.
-        // If this shot was fired at RED (e.g. secondary red from pack split), award legal point
         if (engine.currentShotTarget === 'RED') {
           engine.score += 1;
           engine.currentBreak += 1;
@@ -1006,7 +1077,6 @@ export default function SnookongGame() {
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
         } else {
-          // Genuine foul: potted red when aiming at a color
           triggerFoulPenalty('Potted RED on COLOR', 4);
           dockForReaim('Foul (-4) — potted red on colour');
         }
@@ -1023,6 +1093,7 @@ export default function SnookongGame() {
       case 'BLUE': return '🔵';
       case 'PINK': return '🌸';
       case 'BLACK': return '⚫';
+      case 'GOLD': return '👑';
       default: return '⚪';
     }
   };
@@ -1047,9 +1118,9 @@ export default function SnookongGame() {
     }
   }, [score, personalBest]);
 
-  // Fail-safe assertion: Ensure targetBallType can NEVER be RED if no reds remain
   useEffect(() => {
     const engine = engineRef.current;
+    if (engine.gameState === 'ROUND_WALK' || engine.gameState === 'GAMEOVER') return;
     const actualReds = countActiveReds(engine);
     if (actualReds === 0 && (targetBallType === 'RED' || engine.targetState === 'RED')) {
       engine.phase = 'CLEARANCE';
@@ -1061,6 +1132,14 @@ export default function SnookongGame() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (engineRef.current.gameState === 'ROUND_WALK') {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          startNextRound();
+        }
+        return;
+      }
+
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
         e.preventDefault();
         fireShot();
@@ -1097,7 +1176,7 @@ export default function SnookongGame() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [fireShot]);
+  }, [fireShot, startNextRound]);
 
   const updatePaddlePositionFromClientX = (clientX) => {
     const canvas = canvasRef.current;
@@ -1117,6 +1196,11 @@ export default function SnookongGame() {
   };
 
   const handlePointerDown = (e) => {
+    if (engineRef.current.gameState === 'ROUND_WALK') {
+      startNextRound();
+      return;
+    }
+
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch (err) {}
@@ -1134,6 +1218,7 @@ export default function SnookongGame() {
   };
 
   const handlePointerMove = (e) => {
+    if (engineRef.current.gameState === 'ROUND_WALK') return;
     const dx = e.clientX - pointerStartRef.current.x;
     const dy = e.clientY - pointerStartRef.current.y;
     if (Math.hypot(dx, dy) > 10) {
@@ -1146,6 +1231,11 @@ export default function SnookongGame() {
   };
 
   const handlePointerUp = (e) => {
+    if (engineRef.current.gameState === 'ROUND_WALK') {
+      startNextRound();
+      return;
+    }
+
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -1173,7 +1263,7 @@ export default function SnookongGame() {
   };
 
   useEffect(() => {
-    setupRack();
+    setupRack(1);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -1183,9 +1273,20 @@ export default function SnookongGame() {
 
     const stepSimulation = () => {
       const engine = engineRef.current;
+
+      // ROUND GIRL PARADE PROGRESS
+      if (engine.gameState === 'ROUND_WALK') {
+        engine.ringGirlWalkProgress = (engine.ringGirlWalkProgress || 0) + 0.0055;
+        if (engine.ringGirlWalkProgress >= 1.0) {
+          startNextRound();
+        }
+        return;
+      }
+
+      if (engine.gameState === 'GAMEOVER') return;
+
       const paddle = engine.paddle;
 
-      // Ground-truth assertion running on physics loop
       const liveReds = countActiveReds(engine);
       if (engine.redsRemaining !== liveReds) {
         engine.redsRemaining = liveReds;
@@ -1410,7 +1511,7 @@ export default function SnookongGame() {
       });
 
       // Cue Ball to Object Ball Collisions & Foul Tracking
-      if (cue.active) {
+      if (cue.active && engine.gameState !== 'ROUND_WALK') {
         const activeTarget = engine.phase === 'CLEARANCE'
           ? CLEARANCE_SEQUENCE[engine.clearanceIndex]
           : engine.targetState;
@@ -1588,7 +1689,7 @@ export default function SnookongGame() {
 
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [setupRack, countActiveReds, targetBallType]);
+  }, [setupRack, countActiveReds, targetBallType, startNextRound]);
 
   const drawCanvas = (ctx, engine) => {
     ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
@@ -1645,6 +1746,12 @@ export default function SnookongGame() {
       ctx.arc(p.x, p.y, POCKET_RADIUS - 1.5, 0, Math.PI * 2);
       ctx.fill();
     });
+
+    // 1. ROUND CLEARANCE: RENDER BIKINI RING GIRL CARD PARADE!
+    if (engine.gameState === 'ROUND_WALK') {
+      drawRingGirlParade(ctx, engine);
+      return;
+    }
 
     // Trajectory guide & Vertical Cue Stick
     if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
@@ -1718,6 +1825,16 @@ export default function SnookongGame() {
     engine.balls.forEach(ball => {
       if (ball.isPotted) return;
       draw3DSphericalBall(ctx, ball.x, ball.y, ball.radius * ball.scale, SNOOKER_COLORS[ball.type]);
+
+      // Golden Ball Pulsing Halo
+      if (ball.type === 'GOLD') {
+        const pulse = (Math.sin(Date.now() * 0.006) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(251, 191, 36, ${0.4 + pulse * 0.5})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius + 3 + pulse * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     });
 
     // Cue Ball
@@ -1725,6 +1842,171 @@ export default function SnookongGame() {
     if (!cue.potted) {
       draw3DSphericalBall(ctx, cue.x, cue.y, cue.radius * cue.scale, SNOOKER_COLORS.WHITE);
     }
+  };
+
+  // BIKINI RING GIRL CARD LOOP AROUND THE CUSHION RAILS
+  const drawRingGirlParade = (ctx, engine) => {
+    const p = engine.ringGirlWalkProgress || 0;
+    const nextRnd = engine.round + 1;
+
+    // Track perimeter loop path along cushion inner rail:
+    // Left: (70, 70) -> (70, 700) -> (380, 700) -> (380, 70) -> (70, 70)
+    const minPx = 80;
+    const maxPx = V_WIDTH - 80;
+    const minPy = 110;
+    const maxPy = V_HEIGHT - 120;
+    const leg1 = maxPx - minPx; // top rail right
+    const leg2 = maxPy - minPy; // right rail down
+    const leg3 = maxPx - minPx; // bot rail left
+    const leg4 = maxPy - minPy; // left rail up
+    const totalDist = leg1 + leg2 + leg3 + leg4;
+
+    const currDist = p * totalDist;
+    let gx = minPx;
+    let gy = minPy;
+    let facing = 1;
+
+    if (currDist < leg1) {
+      gx = minPx + currDist;
+      gy = minPy;
+      facing = 1;
+    } else if (currDist < leg1 + leg2) {
+      gx = maxPx;
+      gy = minPy + (currDist - leg1);
+      facing = 1;
+    } else if (currDist < leg1 + leg2 + leg3) {
+      gx = maxPx - (currDist - leg1 - leg2);
+      gy = maxPy;
+      facing = -1;
+    } else {
+      gx = minPx;
+      gy = maxPy - (currDist - leg1 - leg2 - leg3);
+      facing = -1;
+    }
+
+    // Baize Spotlight on Ring Girl
+    ctx.save();
+    const spot = ctx.createRadialGradient(gx, gy, 15, gx, gy, 140);
+    spot.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
+    spot.addColorStop(0.7, 'rgba(236, 72, 153, 0.15)');
+    spot.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = spot;
+    ctx.beginPath();
+    ctx.arc(gx, gy, 140, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Render Ring Girl Figure
+    ctx.save();
+    ctx.translate(gx, gy);
+
+    // Floor Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 36, 18, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // High heels & legs (walking stride)
+    const walkStep = Math.sin(p * 45) * 6;
+    ctx.fillStyle = '#fbcfe8'; // legs skin tone
+    ctx.fillRect(-6 + walkStep, 14, 5, 20);
+    ctx.fillRect(2 - walkStep, 14, 5, 20);
+
+    ctx.fillStyle = '#e11d48'; // red high heels
+    ctx.fillRect(-7 + walkStep, 32, 6, 4);
+    ctx.fillRect(1 - walkStep, 32, 6, 4);
+
+    // Red Metallic Bikini Bottom
+    ctx.fillStyle = '#e11d48';
+    ctx.beginPath();
+    ctx.moveTo(-9, 14);
+    ctx.lineTo(9, 14);
+    ctx.lineTo(0, 24);
+    ctx.closePath();
+    ctx.fill();
+
+    // Toned Midriff
+    ctx.fillStyle = '#fbcfe8';
+    ctx.fillRect(-7, -4, 14, 18);
+
+    // Red Metallic Bikini Top
+    ctx.fillStyle = '#e11d48';
+    ctx.beginPath();
+    ctx.arc(-4, -6, 5, 0, Math.PI * 2);
+    ctx.arc(4, -6, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head, Ponytail & Face
+    ctx.fillStyle = '#fbcfe8';
+    ctx.beginPath();
+    ctx.arc(0, -18, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Blonde flowing ponytail
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(0, -20, 8.5, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(facing * -8, -16, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Raised Arms Holding the Round Card Overhead
+    ctx.strokeStyle = '#fbcfe8';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-7, -6);
+    ctx.lineTo(-14, -30);
+    ctx.moveTo(7, -6);
+    ctx.lineTo(14, -30);
+    ctx.stroke();
+
+    // The Official Round Card
+    const cardW = 92;
+    const cardH = 34;
+    const cardY = -66 + Math.sin(p * 30) * 3;
+
+    // Outer Glowing Card
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(-cardW / 2, cardY, cardW, cardH, 5);
+    ctx.fill();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Card Text
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'black 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`ROUND ${nextRnd}`, 0, cardY + 12);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.fillText('CRUCIBLE TITLE', 0, cardY + 24);
+
+    ctx.restore();
+
+    // Center Baize Prompt to Tap/Skip
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.roundRect(135, 375, 180, 46, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`ROUND ${nextRnd} UP NEXT!`, 225, 393);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '9px sans-serif';
+    ctx.fillText('Tap table or press Space to skip', 225, 408);
+    ctx.restore();
   };
 
   const drawAuthenticCueStick = (ctx, ballX, ballY, angleRad) => {
@@ -1890,10 +2172,9 @@ export default function SnookongGame() {
   const handleCopyScore = () => {
     const today = new Date().toISOString().slice(0, 10);
     const potString = historyPots.slice(0, 14).join('') || '🔴';
-    const text = `🎱 Snookong (${today})
-Break: ${highestBreak} pts | Score: ${score}
-Pots: ${potString}
-Reds Cleared: ${10 - redsLeft}/10 | Lives Left: ${lives}/3
+    const text = `🥊 Snookong World Champion (${today})
+Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
+Sequence: ${potString}
 Play on pottheblack.com/games/snookong`;
 
     if (navigator.clipboard) {
@@ -1905,6 +2186,13 @@ Play on pottheblack.com/games/snookong`;
   };
 
   const getTargetBadge = () => {
+    if (gameState === 'ROUND_WALK') {
+      return {
+        label: `ROUND ${round + 1} READY 🥊`,
+        bg: 'bg-amber-500/30 text-amber-200 border-amber-400 font-black animate-pulse',
+        dot: 'bg-amber-400 shadow-amber-400'
+      };
+    }
     if (targetBallType === 'RED') {
       return {
         label: 'ON: RED (+1)',
@@ -1914,7 +2202,7 @@ Play on pottheblack.com/games/snookong`;
     }
     if (targetBallType === 'ANY_COLOR') {
       return {
-        label: 'ON: ANY COLOR',
+        label: round >= 2 ? 'ON: ANY COLOR / GOLD (+20)' : 'ON: ANY COLOR',
         bg: 'bg-amber-500/20 text-amber-300 border-amber-500/50 animate-pulse',
         dot: 'bg-amber-400 shadow-amber-400/50'
       };
@@ -1951,6 +2239,9 @@ Play on pottheblack.com/games/snookong`;
           <span className="text-neutral-700">|</span>
           <span className="font-bold tracking-wider text-neutral-200 uppercase text-[11px]">
             Snookong
+          </span>
+          <span className="text-[9px] font-bold text-amber-400 bg-amber-950/60 px-1 rounded border border-amber-800/40">
+            RND {round}
           </span>
           <span className="text-[8px] font-mono text-neutral-600" title="Build date">
             {BUILD_DATE}
@@ -2089,35 +2380,35 @@ Play on pottheblack.com/games/snookong`;
             </div>
           )}
 
-          {(gameState === 'GAMEOVER' || gameState === 'VICTORY') && (
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-30">
-              <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 mb-2 shadow-lg">
-                <Trophy size={24} />
+          {gameState === 'GAMEOVER' && (
+            <div className="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-30 animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-14 h-14 rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-rose-400 mb-2 shadow-[0_0_25px_rgba(244,63,94,0.4)]">
+                <Trophy size={28} />
               </div>
-              <h2 className="text-xl font-black text-white uppercase tracking-wider">
-                {gameState === 'VICTORY' ? 'Table Cleared!' : 'Out of Lives'}
+              <h2 className="text-2xl font-black text-rose-400 uppercase tracking-widest drop-shadow-md">
+                Knockout (Out of Lives)
               </h2>
-              <p className="text-[11px] text-neutral-400 mt-0.5">
-                {gameState === 'VICTORY' ? 'Full clearance executed.' : 'All cue lives lost to pocket scratches or drains.'}
+              <p className="text-xs text-neutral-300 font-semibold mt-1">
+                Defeated in Round {round}. All cue lives lost to scratches or drains.
               </p>
               {isNewBest && (
-                <span className="mt-1.5 inline-block text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 rounded-full">
+                <span className="mt-2 inline-block text-[11px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-400 px-3 py-1 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.3)]">
                   🏆 New Personal Best!
                 </span>
               )}
 
               <div className="w-full bg-neutral-900/90 border border-neutral-800 rounded-lg p-2.5 my-3 grid grid-cols-3 gap-2 text-left">
                 <div>
-                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Score</span>
+                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Final Score</span>
                   <span className="text-lg font-bold text-white">{score}</span>
                 </div>
                 <div>
-                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Break</span>
+                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Best Break</span>
                   <span className="text-lg font-bold text-amber-400">{highestBreak}</span>
                 </div>
                 <div>
-                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Best</span>
-                  <span className="text-lg font-bold text-emerald-400">{personalBest}</span>
+                  <span className="text-[9px] text-neutral-500 block uppercase font-semibold">Round Reached</span>
+                  <span className="text-lg font-bold text-emerald-400">RND {round}</span>
                 </div>
                 <div className="col-span-3 pt-1 border-t border-neutral-800">
                   <span className="text-[9px] text-neutral-500 block uppercase font-semibold mb-0.5">Sequence</span>
@@ -2133,14 +2424,14 @@ Play on pottheblack.com/games/snookong`;
                   className="flex-1 py-2 px-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-md text-xs font-bold flex items-center justify-center space-x-1 border border-neutral-700"
                 >
                   <Share2 size={13} />
-                  <span>{copiedToast ? 'Copied!' : 'Share'}</span>
+                  <span>{copiedToast ? 'Copied!' : 'Share Win'}</span>
                 </button>
                 <button
                   onClick={restartGame}
                   className="flex-1 py-2 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-bold flex items-center justify-center space-x-1 shadow-lg shadow-emerald-600/30"
                 >
                   <RotateCcw size={13} />
-                  <span>Play Again</span>
+                  <span>Fight Again</span>
                 </button>
               </div>
             </div>
@@ -2149,7 +2440,20 @@ Play on pottheblack.com/games/snookong`;
       </div>
 
       <footer className="w-full max-w-[420px] mx-auto h-14 bg-neutral-900/95 border border-neutral-800 rounded-lg px-2 flex items-center justify-between shrink-0 shadow-xl backdrop-blur-md">
-        {(gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND' || gameState === 'RE_AIM') ? (
+        {gameState === 'ROUND_WALK' ? (
+          <div className="w-full flex items-center justify-between px-2">
+            <span className="text-xs font-black text-amber-300 tracking-wider flex items-center gap-1.5 animate-pulse">
+              <span>🥊</span> ROUND {round + 1} APPROACHING
+            </span>
+            <button
+              type="button"
+              onClick={startNextRound}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded shadow-md"
+            >
+              SKIP PARADE ⏩
+            </button>
+          </div>
+        ) : (gameState === 'BREAK_AIM' || gameState === 'BALL_IN_HAND' || gameState === 'RE_AIM') ? (
           <div className="w-full flex items-center space-x-2">
             <div className="flex items-center space-x-1">
               <button
@@ -2222,13 +2526,10 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on. Once legal first contact is established, secondary cannons into other balls are completely legal.
               </li>
               <li>
-                <strong className="text-white">Referee Calls:</strong> An official referee announces your cumulative break after each successful pot, calls fouls, and awards frame finishes.
+                <strong className="text-amber-300">The 20-Point Golden Ball (Round 2+):</strong> In Round 2 and above, the sparkling Gold Ball sits atop the Black. Whenever you are on <strong>ANY COLOR</strong>, you can nominate the Golden Ball for a huge 20-point pot! Striking or potting it when on Red or during clearance incurs a 7-point foul.
               </li>
               <li>
-                <strong className="text-emerald-400">Red → Color Sequence:</strong> Pot a <strong>Red (1 pt)</strong>, then <strong>Any Color (2–7 pts)</strong>. Potted colors automatically respot while reds remain on the baize.
-              </li>
-              <li>
-                <strong className="text-amber-400">Endgame:</strong> After all 10 reds and the final corresponding color are cleared, sink the 6 colors in standard snooker order: Yellow → Green → Brown → Blue → Pink → Black.
+                <strong className="text-emerald-400">Round Progression:</strong> Clear all 10 reds and all 6 colors to trigger the Crucible Ring Girl Round Walk, carry your break forward, and unlock the next championship round!
               </li>
             </ul>
 
