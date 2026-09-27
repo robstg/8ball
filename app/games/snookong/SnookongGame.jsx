@@ -517,7 +517,7 @@ export default function SnookongGame() {
     phase: 'REDS',
     round: 1,
     aimOffsetDeg: 0,
-    consecutiveSideBounces = 0,
+    consecutiveSideBounces: 0,
     firstContactMade: false,
     shotHadLegalContact: false,
     currentShotTarget: 'RED',
@@ -724,7 +724,6 @@ export default function SnookongGame() {
     soundRef.current.init();
     const engine = engineRef.current;
     
-    // Clicking during round girl parade skips straight to next round
     if (engine.gameState === 'ROUND_WALK') {
       startNextRound();
       return;
@@ -975,12 +974,10 @@ export default function SnookongGame() {
           engine.cueBall.vy = 0;
           engine.cueBall.potted = true;
 
-          // Sound celebration
           soundRef.current.playBoxingBell();
           const nextRnd = engine.round + 1;
           soundRef.current.speakReferee(`End of round ${engine.round}. Round ${nextRnd}!`);
 
-          // Transition to Ring Girl Lap
           engine.gameState = 'ROUND_WALK';
           engine.ringGirlWalkProgress = 0;
           setGameState('ROUND_WALK');
@@ -993,7 +990,7 @@ export default function SnookongGame() {
         }
       } else {
         respotBall(ball);
-        const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+        const penalty = Math.min(7, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
         triggerFoulPenalty(`Wrong Ball: ${ball.type}`, penalty);
         dockForReaim(`Foul (-${penalty}) — potted wrong colour`);
       }
@@ -1026,7 +1023,7 @@ export default function SnookongGame() {
         );
       } else {
         respotBall(ball);
-        const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+        const penalty = Math.min(7, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
         triggerFoulPenalty(`Potted ${ball.type} on RED`, penalty);
         dockForReaim(`Foul (-${penalty}) — colour potted on red`);
       }
@@ -1274,7 +1271,6 @@ export default function SnookongGame() {
     const stepSimulation = () => {
       const engine = engineRef.current;
 
-      // ROUND GIRL PARADE PROGRESS
       if (engine.gameState === 'ROUND_WALK') {
         engine.ringGirlWalkProgress = (engine.ringGirlWalkProgress || 0) + 0.0055;
         if (engine.ringGirlWalkProgress >= 1.0) {
@@ -1581,7 +1577,7 @@ export default function SnookongGame() {
               if (isLegalContact) {
                 engine.shotHadLegalContact = true;
               } else {
-                const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
+                const penalty = Math.min(7, Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4));
                 triggerFoulPenalty(foulReason, penalty);
                 dockForReaim(`Foul (-${penalty}) — ${foulReason}`);
                 break;
@@ -1844,21 +1840,18 @@ export default function SnookongGame() {
     }
   };
 
-  // BIKINI RING GIRL CARD LOOP AROUND THE CUSHION RAILS
   const drawRingGirlParade = (ctx, engine) => {
     const p = engine.ringGirlWalkProgress || 0;
     const nextRnd = engine.round + 1;
 
-    // Track perimeter loop path along cushion inner rail:
-    // Left: (70, 70) -> (70, 700) -> (380, 700) -> (380, 70) -> (70, 70)
     const minPx = 80;
     const maxPx = V_WIDTH - 80;
     const minPy = 110;
     const maxPy = V_HEIGHT - 120;
-    const leg1 = maxPx - minPx; // top rail right
-    const leg2 = maxPy - minPy; // right rail down
-    const leg3 = maxPx - minPx; // bot rail left
-    const leg4 = maxPy - minPy; // left rail up
+    const leg1 = maxPx - minPx;
+    const leg2 = maxPy - minPy;
+    const leg3 = maxPx - minPx;
+    const leg4 = maxPy - minPy;
     const totalDist = leg1 + leg2 + leg3 + leg4;
 
     const currDist = p * totalDist;
@@ -1884,7 +1877,6 @@ export default function SnookongGame() {
       facing = -1;
     }
 
-    // Baize Spotlight on Ring Girl
     ctx.save();
     const spot = ctx.createRadialGradient(gx, gy, 15, gx, gy, 140);
     spot.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
@@ -1896,27 +1888,23 @@ export default function SnookongGame() {
     ctx.fill();
     ctx.restore();
 
-    // Render Ring Girl Figure
     ctx.save();
     ctx.translate(gx, gy);
 
-    // Floor Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
     ctx.ellipse(0, 36, 18, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // High heels & legs (walking stride)
     const walkStep = Math.sin(p * 45) * 6;
-    ctx.fillStyle = '#fbcfe8'; // legs skin tone
+    ctx.fillStyle = '#fbcfe8';
     ctx.fillRect(-6 + walkStep, 14, 5, 20);
     ctx.fillRect(2 - walkStep, 14, 5, 20);
 
-    ctx.fillStyle = '#e11d48'; // red high heels
+    ctx.fillStyle = '#e11d48';
     ctx.fillRect(-7 + walkStep, 32, 6, 4);
     ctx.fillRect(1 - walkStep, 32, 6, 4);
 
-    // Red Metallic Bikini Bottom
     ctx.fillStyle = '#e11d48';
     ctx.beginPath();
     ctx.moveTo(-9, 14);
@@ -1925,24 +1913,20 @@ export default function SnookongGame() {
     ctx.closePath();
     ctx.fill();
 
-    // Toned Midriff
     ctx.fillStyle = '#fbcfe8';
     ctx.fillRect(-7, -4, 14, 18);
 
-    // Red Metallic Bikini Top
     ctx.fillStyle = '#e11d48';
     ctx.beginPath();
     ctx.arc(-4, -6, 5, 0, Math.PI * 2);
     ctx.arc(4, -6, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head, Ponytail & Face
     ctx.fillStyle = '#fbcfe8';
     ctx.beginPath();
     ctx.arc(0, -18, 8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Blonde flowing ponytail
     ctx.fillStyle = '#fef08a';
     ctx.beginPath();
     ctx.arc(0, -20, 8.5, Math.PI, Math.PI * 2);
@@ -1951,7 +1935,6 @@ export default function SnookongGame() {
     ctx.arc(facing * -8, -16, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Raised Arms Holding the Round Card Overhead
     ctx.strokeStyle = '#fbcfe8';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -1961,12 +1944,10 @@ export default function SnookongGame() {
     ctx.lineTo(14, -30);
     ctx.stroke();
 
-    // The Official Round Card
     const cardW = 92;
     const cardH = 34;
     const cardY = -66 + Math.sin(p * 30) * 3;
 
-    // Outer Glowing Card
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.roundRect(-cardW / 2, cardY, cardW, cardH, 5);
@@ -1975,7 +1956,6 @@ export default function SnookongGame() {
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Card Text
     ctx.fillStyle = '#f59e0b';
     ctx.font = 'black 11px sans-serif';
     ctx.textAlign = 'center';
@@ -1988,7 +1968,6 @@ export default function SnookongGame() {
 
     ctx.restore();
 
-    // Center Baize Prompt to Tap/Skip
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.beginPath();
