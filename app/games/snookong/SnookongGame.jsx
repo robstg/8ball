@@ -69,6 +69,10 @@ const GOLD_SPOT = { x: 225, y: 54 };
 
 const CLEARANCE_SEQUENCE = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
+const countActiveReds = (engine) => {
+  return engine.balls.filter(b => b.type === 'RED' && !b.isPotted).length;
+};
+
 class RealisticSoundEngine {
   constructor() {
     this.ctx = null;
@@ -563,10 +567,6 @@ export default function SnookongGame() {
     potLog: []
   });
 
-  const countActiveReds = useCallback((engine) => {
-    return engine.balls.filter(b => b.type === 'RED' && !b.isPotted).length;
-  }, []);
-
   const setupRack = useCallback((targetRound = 1) => {
     const engine = engineRef.current;
     engine.round = targetRound;
@@ -719,6 +719,11 @@ export default function SnookongGame() {
     );
     setTimeout(() => setPotToast(null), 3000);
   }, [setupRack]);
+
+  const startNextRoundRef = useRef(startNextRound);
+  useEffect(() => {
+    startNextRoundRef.current = startNextRound;
+  }, [startNextRound]);
 
   const fireShot = useCallback(() => {
     soundRef.current.init();
@@ -967,7 +972,6 @@ export default function SnookongGame() {
         setHighestBreak(engine.highestBreak);
         setHistoryPots([...engine.potLog]);
 
-        // CHECK IF ALL 6 COLORS ARE CLEARED -> INITIATE BIKINI RING GIRL PARADE!
         if (engine.clearanceIndex >= CLEARANCE_SEQUENCE.length) {
           engine.cueBall.active = false;
           engine.cueBall.vx = 0;
@@ -1125,7 +1129,7 @@ export default function SnookongGame() {
       engine.targetState = target;
       setTargetBallType(target);
     }
-  }, [redsLeft, targetBallType, countActiveReds]);
+  }, [redsLeft, targetBallType]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1259,6 +1263,7 @@ export default function SnookongGame() {
     }
   };
 
+  // Main Canvas & Simulation Lifecycle: Mounts once and maintains dedicated physics loop
   useEffect(() => {
     setupRack(1);
     const canvas = canvasRef.current;
@@ -1274,7 +1279,7 @@ export default function SnookongGame() {
       if (engine.gameState === 'ROUND_WALK') {
         engine.ringGirlWalkProgress = (engine.ringGirlWalkProgress || 0) + 0.0055;
         if (engine.ringGirlWalkProgress >= 1.0) {
-          startNextRound();
+          startNextRoundRef.current();
         }
         return;
       }
@@ -1288,7 +1293,7 @@ export default function SnookongGame() {
         engine.redsRemaining = liveReds;
         setRedsLeft(liveReds);
       }
-      if (liveReds === 0 && (engine.targetState === 'RED' || targetBallType === 'RED')) {
+      if (liveReds === 0 && engine.targetState === 'RED') {
         engine.phase = 'CLEARANCE';
         const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
         engine.targetState = nextTarget;
@@ -1685,160 +1690,7 @@ export default function SnookongGame() {
 
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [setupRack, countActiveReds, targetBallType, startNextRound]);
-
-  const drawCanvas = (ctx, engine) => {
-    ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
-
-    // Hardwood Cushion Rails
-    ctx.fillStyle = '#1c130d';
-    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
-    ctx.fillStyle = '#2b160e';
-    ctx.fillRect(8, 8, V_WIDTH - 16, V_HEIGHT - 16);
-
-    // Baize Cloth
-    const clothGrad = ctx.createRadialGradient(225, 400, 50, 225, 400, 480);
-    clothGrad.addColorStop(0, '#15803d');
-    clothGrad.addColorStop(0.75, '#166534');
-    clothGrad.addColorStop(1, '#0e3e1f');
-    ctx.fillStyle = clothGrad;
-    ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH, V_WIDTH - CUSHION_WIDTH * 2, V_HEIGHT - CUSHION_WIDTH * 2);
-
-    // Cushion Edge Shadows
-    ctx.fillStyle = '#064e3b';
-    ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH - 6, V_WIDTH - CUSHION_WIDTH * 2, 6);
-    ctx.fillRect(CUSHION_WIDTH - 6, CUSHION_WIDTH, 6, V_HEIGHT - CUSHION_WIDTH * 2);
-    ctx.fillRect(V_WIDTH - CUSHION_WIDTH, CUSHION_WIDTH, 6, V_HEIGHT - CUSHION_WIDTH * 2);
-
-    // Baulk Line & D
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.moveTo(CUSHION_WIDTH, 620);
-    ctx.lineTo(V_WIDTH - CUSHION_WIDTH, 620);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(225, 620, 55, 0, Math.PI, false);
-    ctx.stroke();
-
-    // Spot markers
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    Object.values(COLOR_SPOTS).forEach(s => {
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Pockets
-    engine.pockets.forEach(p => {
-      ctx.fillStyle = '#b45309';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, POCKET_RADIUS + 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#09090b';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, POCKET_RADIUS - 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // 1. ROUND CLEARANCE: RENDER BIKINI RING GIRL CARD PARADE!
-    if (engine.gameState === 'ROUND_WALK') {
-      drawRingGirlParade(ctx, engine);
-      return;
-    }
-
-    // Trajectory guide & Vertical Cue Stick
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
-      const cueAngleRad = (engine.aimOffsetDeg * Math.PI) / 180;
-      drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, cueAngleRad);
-    }
-
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
-      const rad = (-90 + engine.aimOffsetDeg) * (Math.PI / 180);
-      drawTrajectoryGuide(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad, engine);
-    }
-
-    // Adaptive Wing Paddle
-    const paddle = engine.paddle;
-    const leftWing = paddle.leftWing || paddle.width / 2;
-    const rightWing = paddle.rightWing || paddle.width / 2;
-    const padL = paddle.x - leftWing;
-    const padW = leftWing + rightWing;
-    const padT = paddle.y - paddle.height / 2;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath();
-    ctx.roundRect(padL + 2, padT + 4, padW, paddle.height, 6);
-    ctx.fill();
-
-    const padGrad = ctx.createLinearGradient(padL, padT, padL, padT + paddle.height);
-    padGrad.addColorStop(0, '#38bdf8');
-    padGrad.addColorStop(0.25, '#1e293b');
-    padGrad.addColorStop(0.75, '#0f172a');
-    padGrad.addColorStop(1, '#0284c7');
-    ctx.fillStyle = padGrad;
-    ctx.beginPath();
-    ctx.roundRect(padL, padT, padW, paddle.height, 6);
-    ctx.fill();
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath();
-    ctx.arc(paddle.x, paddle.y, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (leftWing < 42) {
-      ctx.fillStyle = '#0284c7';
-      ctx.fillRect(padL, padT + 2, 2.5, paddle.height - 4);
-    }
-    if (rightWing < 42) {
-      ctx.fillStyle = '#0284c7';
-      ctx.fillRect(padL + padW - 2.5, padT + 2, 2.5, paddle.height - 4);
-    }
-
-    // Cue Dock Halo
-    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(paddle.x, PADDLE_Y - BALL_RADIUS - 7, BALL_RADIUS + 3.5, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Particles
-    engine.particles.forEach(pt => {
-      ctx.save();
-      ctx.globalAlpha = pt.alpha;
-      ctx.fillStyle = pt.color;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
-
-    // Object Balls
-    engine.balls.forEach(ball => {
-      if (ball.isPotted) return;
-      draw3DSphericalBall(ctx, ball.x, ball.y, ball.radius * ball.scale, SNOOKER_COLORS[ball.type]);
-
-      // Golden Ball Pulsing Halo
-      if (ball.type === 'GOLD') {
-        const pulse = (Math.sin(Date.now() * 0.006) + 1) * 0.5;
-        ctx.strokeStyle = `rgba(251, 191, 36, ${0.4 + pulse * 0.5})`;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius + 3 + pulse * 3, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    });
-
-    // Cue Ball
-    const cue = engine.cueBall;
-    if (!cue.potted) {
-      draw3DSphericalBall(ctx, cue.x, cue.y, cue.radius * cue.scale, SNOOKER_COLORS.WHITE);
-    }
-  };
+  }, []); // Strictly empty dependency array: mounts once and never resets the game on reactive state updates
 
   const drawRingGirlParade = (ctx, engine) => {
     const p = engine.ringGirlWalkProgress || 0;
