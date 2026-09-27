@@ -91,7 +91,6 @@ class RealisticSoundEngine {
     if (!this.synth) return;
     const updateVoice = () => {
       const voices = this.synth.getVoices();
-      // Look for a British English voice for authentic Crucible referee tone
       this.refereeVoice = voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB') ||
                           voices.find(v => v.lang.startsWith('en')) ||
                           null;
@@ -108,7 +107,7 @@ class RealisticSoundEngine {
       this.synth.cancel();
       const utterance = new SpeechSynthesisUtterance(phrase);
       if (this.refereeVoice) utterance.voice = this.refereeVoice;
-      utterance.pitch = 0.94; // Calm, measured referee pitch
+      utterance.pitch = 0.94;
       utterance.rate = 0.98;
       this.synth.speak(utterance);
     } catch (e) {}
@@ -497,6 +496,7 @@ export default function SnookongGame() {
     aimOffsetDeg: 0,
     consecutiveSideBounces: 0,
     firstContactMade: false,
+    shotHadLegalContact: false,
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -642,6 +642,7 @@ export default function SnookongGame() {
     engine.aimOffsetDeg = 0;
     engine.consecutiveSideBounces = 0;
     engine.firstContactMade = false;
+    engine.shotHadLegalContact = false;
     engine.targetState = 'RED';
     engine.clearanceIndex = 0;
     engine.redsRemaining = 10;
@@ -679,6 +680,7 @@ export default function SnookongGame() {
     engine.shotClockSteps = 0;
     engine.lastTickSecond = null;
     engine.firstContactMade = false;
+    engine.shotHadLegalContact = false;
 
     if (engine.gameState === 'BREAK_AIM') {
       soundRef.current.playBreakExplosion();
@@ -778,6 +780,7 @@ export default function SnookongGame() {
     engine.lives -= 1;
     engine.consecutiveSideBounces = 0;
     engine.firstContactMade = false;
+    engine.shotHadLegalContact = false;
 
     if (engine.phase === 'CLEARANCE') {
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
@@ -831,6 +834,7 @@ export default function SnookongGame() {
     engine.cueBall.y = engine.paddle.y - BALL_RADIUS - 7;
     engine.consecutiveSideBounces = 0;
     engine.firstContactMade = false;
+    engine.shotHadLegalContact = false;
     engine.gameState = 'RE_AIM';
     setGameState('RE_AIM');
     updateAimAngle(0);
@@ -1241,7 +1245,6 @@ export default function SnookongGame() {
             ) {
               cue.y = paddleTop - cue.radius;
               engine.consecutiveSideBounces = 0;
-              engine.firstContactMade = false; // Fresh contact check on every paddle deflection
   
               const activeWing = cue.x < paddle.x ? paddle.leftWing : paddle.rightWing;
               const hitOffset = (cue.x - paddle.x) / (activeWing || 57);
@@ -1338,11 +1341,39 @@ export default function SnookongGame() {
         });
       });
 
-      // Cue Ball to Object Ball Collisions & First-Contact Foul Tracking
+      // Cue Ball to Object Ball Collisions & Foul Tracking
       if (cue.active) {
+        // Collect all colliding balls in this tick to resolve array-index bias
+        const activeTarget = engine.phase === 'CLEARANCE'
+          ? CLEARANCE_SEQUENCE[engine.clearanceIndex]
+          : engine.targetState;
+
+        const collisions = [];
         for (let ballIdx = 0; ballIdx < engine.balls.length; ballIdx++) {
           const ball = engine.balls[ballIdx];
           if (ball.isPotted) continue;
+          const dx = ball.x - cue.x;
+          const dy = ball.y - cue.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < cue.radius + ball.radius) {
+            collisions.push({ ball, ballIdx, dist, dx, dy });
+          }
+        }
+
+        // If multiple balls are contacted simultaneously, prioritize the legal ball on
+        if (collisions.length > 1) {
+          collisions.sort((a, b) => {
+            const aIsTarget = (activeTarget === 'ANY_COLOR' && a.ball.type !== 'RED') || a.ball.type === activeTarget;
+            const bIsTarget = (activeTarget === 'ANY_COLOR' && b.ball.type !== 'RED') || b.ball.type === activeTarget;
+            if (aIsTarget && !bIsTarget) return -1;
+            if (!aIsTarget && bIsTarget) return 1;
+            return a.dist - b.dist;
+          });
+        }
+
+        for (let cIdx = 0; cIdx < collisions.length; cIdx++) {
+          const { ball, ballIdx } = collisions[cIdx];
           let dx = ball.x - cue.x;
           let dy = ball.y - cue.y;
           let dist = Math.hypot(dx, dy);
@@ -1358,6 +1389,7 @@ export default function SnookongGame() {
             engine.consecutiveSideBounces = 0;
 
             // FIRST-CONTACT FOUL CHECK
+            // If legal contact was already made on this shot, secondary cannons/caroms are completely legal!
             if (!engine.firstContactMade) {
               engine.firstContactMade = true;
               let isLegalContact = true;
@@ -1381,7 +1413,9 @@ export default function SnookongGame() {
                 }
               }
 
-              if (!isLegalContact) {
+              if (isLegalContact) {
+                engine.shotHadLegalContact = true;
+              } else {
                 const penalty = Math.max(4, SNOOKER_COLORS[ball.type]?.value || 4);
                 triggerFoulPenalty(foulReason, penalty);
                 dockForReaim(`Foul (-${penalty}) — ${foulReason}`);
@@ -2120,7 +2154,7 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-amber-400">Controls:</strong> On PC, use <code className="text-amber-300">Left / Right Arrows</code> or <code className="text-amber-300">A / D</code> to steer the paddle. Use <code className="text-amber-300">Up / Down</code> or <code className="text-amber-300">W / S</code> to tweak aim. Press <code className="text-amber-300">Enter</code> or <code className="text-amber-300">Spacebar</code> to strike.
               </li>
               <li>
-                <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on (Red when on reds, or a colour when on colours). Cushion bank shots and escapes are legal, but clipping the wrong ball first incurs an instant 4–7 pt foul.
+                <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on. Once legal first contact is established, secondary cannons into other balls are completely legal.
               </li>
               <li>
                 <strong className="text-white">Referee Calls:</strong> An official referee announces your cumulative break after each successful pot, calls fouls, and awards frame finishes.
