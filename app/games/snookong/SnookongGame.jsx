@@ -70,6 +70,7 @@ const GOLD_SPOT = { x: 225, y: 54 };
 const CLEARANCE_SEQUENCE = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
 const countActiveReds = (engine) => {
+  if (!engine.balls || engine.balls.length === 0) return 0;
   return engine.balls.filter(b => b.type === 'RED' && !b.isPotted).length;
 };
 
@@ -97,10 +98,12 @@ class RealisticSoundEngine {
   initVoices() {
     if (!this.synth) return;
     const updateVoice = () => {
-      const voices = this.synth.getVoices();
-      this.refereeVoice = voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB') ||
-                          voices.find(v => v.lang.startsWith('en')) ||
-                          null;
+      try {
+        const voices = this.synth.getVoices();
+        this.refereeVoice = voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB') ||
+                            voices.find(v => v.lang.startsWith('en')) ||
+                            null;
+      } catch (e) {}
     };
     updateVoice();
     if (this.synth.onvoiceschanged !== undefined) {
@@ -445,54 +448,15 @@ class RealisticSoundEngine {
       shimmer.stop(shimmerStart + 0.37);
     } catch (e) {}
   }
-
-  playVictoryFanfare() {
-    if (!this.enabled || !this.ctx) return;
-    try {
-      const notes = [440, 554, 659, 880, 1108];
-      notes.forEach((freq, idx) => {
-        const t = this.ctx.currentTime + idx * 0.11;
-
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(0.26, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.25);
-
-        const harmOsc = this.ctx.createOscillator();
-        harmGain.gain.setValueAtTime(0.1, t);
-        harmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-        harmOsc.connect(harmGain);
-        harmGain.connect(this.ctx.destination);
-        harmOsc.start(t);
-        harmOsc.stop(t + 0.23);
-      });
-
-      const chordStart = this.ctx.currentTime + notes.length * 0.11;
-      [880, 1108, 1318].forEach((freq) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, chordStart);
-        gain.gain.setValueAtTime(0.16, chordStart);
-        gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.6);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(chordStart);
-        osc.stop(chordStart + 0.62);
-      });
-    } catch (e) {}
-  }
 }
 
 export default function SnookongGame() {
   const canvasRef = useRef(null);
-  const soundRef = useRef(new RealisticSoundEngine());
+  const soundRef = useRef(null);
+
+  if (!soundRef.current) {
+    soundRef.current = new RealisticSoundEngine();
+  }
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [score, setScore] = useState(0);
@@ -1122,6 +1086,8 @@ export default function SnookongGame() {
   useEffect(() => {
     const engine = engineRef.current;
     if (engine.gameState === 'ROUND_WALK' || engine.gameState === 'GAMEOVER') return;
+    if (!engine.balls || engine.balls.length === 0) return; // Prevent race-condition on initial mount
+
     const actualReds = countActiveReds(engine);
     if (actualReds === 0 && (targetBallType === 'RED' || engine.targetState === 'RED')) {
       engine.phase = 'CLEARANCE';
@@ -1263,7 +1229,515 @@ export default function SnookongGame() {
     }
   };
 
-  // Main Canvas & Simulation Lifecycle: Mounts once and maintains dedicated physics loop
+  // Helper Drawing Functions placed before drawCanvas to avoid temporal dead zone errors
+  const drawRingGirlParade = (ctx, engine) => {
+    const p = engine.ringGirlWalkProgress || 0;
+    const nextRnd = engine.round + 1;
+
+    const minPx = 80;
+    const maxPx = V_WIDTH - 80;
+    const minPy = 110;
+    const maxPy = V_HEIGHT - 120;
+    const leg1 = maxPx - minPx;
+    const leg2 = maxPy - minPy;
+    const leg3 = maxPx - minPx;
+    const leg4 = maxPy - minPy;
+    const totalDist = leg1 + leg2 + leg3 + leg4;
+
+    const currDist = p * totalDist;
+    let gx = minPx;
+    let gy = minPy;
+    let facing = 1;
+
+    if (currDist < leg1) {
+      gx = minPx + currDist;
+      gy = minPy;
+      facing = 1;
+    } else if (currDist < leg1 + leg2) {
+      gx = maxPx;
+      gy = minPy + (currDist - leg1);
+      facing = 1;
+    } else if (currDist < leg1 + leg2 + leg3) {
+      gx = maxPx - (currDist - leg1 - leg2);
+      gy = maxPy;
+      facing = -1;
+    } else {
+      gx = minPx;
+      gy = maxPy - (currDist - leg1 - leg2 - leg3);
+      facing = -1;
+    }
+
+    ctx.save();
+    const spot = ctx.createRadialGradient(gx, gy, 15, gx, gy, 140);
+    spot.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
+    spot.addColorStop(0.7, 'rgba(236, 72, 153, 0.15)');
+    spot.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = spot;
+    ctx.beginPath();
+    ctx.arc(gx, gy, 140, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(gx, gy);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 36, 18, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const walkStep = Math.sin(p * 45) * 6;
+    ctx.fillStyle = '#fbcfe8';
+    ctx.fillRect(-6 + walkStep, 14, 5, 20);
+    ctx.fillRect(2 - walkStep, 14, 5, 20);
+
+    ctx.fillStyle = '#e11d48';
+    ctx.fillRect(-7 + walkStep, 32, 6, 4);
+    ctx.fillRect(1 - walkStep, 32, 6, 4);
+
+    ctx.fillStyle = '#e11d48';
+    ctx.beginPath();
+    ctx.moveTo(-9, 14);
+    ctx.lineTo(9, 14);
+    ctx.lineTo(0, 24);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#fbcfe8';
+    ctx.fillRect(-7, -4, 14, 18);
+
+    ctx.fillStyle = '#e11d48';
+    ctx.beginPath();
+    ctx.arc(-4, -6, 5, 0, Math.PI * 2);
+    ctx.arc(4, -6, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fbcfe8';
+    ctx.beginPath();
+    ctx.arc(0, -18, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(0, -20, 8.5, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(facing * -8, -16, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#fbcfe8';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-7, -6);
+    ctx.lineTo(-14, -30);
+    ctx.moveTo(7, -6);
+    ctx.lineTo(14, -30);
+    ctx.stroke();
+
+    const cardW = 92;
+    const cardH = 34;
+    const cardY = -66 + Math.sin(p * 30) * 3;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(-cardW / 2, cardY, cardW, cardH, 5);
+    ctx.fill();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'black 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`ROUND ${nextRnd}`, 0, cardY + 12);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.fillText('CRUCIBLE TITLE', 0, cardY + 24);
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.roundRect(135, 375, 180, 46, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`ROUND ${nextRnd} UP NEXT!`, 225, 393);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '9px sans-serif';
+    ctx.fillText('Tap table or press Space to skip', 225, 408);
+    ctx.restore();
+  };
+
+  const drawAuthenticCueStick = (ctx, ballX, ballY, angleRad) => {
+    ctx.save();
+    ctx.translate(ballX, ballY);
+    ctx.rotate(angleRad);
+
+    const tipDist = BALL_RADIUS + 4;
+    const shaftLen = 65;
+    const buttLen = 45;
+
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    ctx.roundRect(-2.2, tipDist, 4.4, 3, 1);
+    ctx.fill();
+
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(-2.4, tipDist + 3, 4.8, 4);
+
+    const shaftStart = tipDist + 7;
+    const shaftGrad = ctx.createLinearGradient(-3.5, shaftStart, 3.5, shaftStart);
+    shaftGrad.addColorStop(0, '#fef3c7');
+    shaftGrad.addColorStop(0.5, '#fde68a');
+    shaftGrad.addColorStop(1, '#d97706');
+    ctx.fillStyle = shaftGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-2.4, shaftStart);
+    ctx.lineTo(2.4, shaftStart);
+    ctx.lineTo(3.8, shaftStart + shaftLen);
+    ctx.lineTo(-3.8, shaftStart + shaftLen);
+    ctx.closePath();
+    ctx.fill();
+
+    const buttStart = shaftStart + shaftLen;
+    const buttGrad = ctx.createLinearGradient(-5, buttStart, 5, buttStart);
+    buttGrad.addColorStop(0, '#18181b');
+    buttGrad.addColorStop(0.5, '#27272a');
+    buttGrad.addColorStop(1, '#09090b');
+    ctx.fillStyle = buttGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-3.8, buttStart);
+    ctx.lineTo(3.8, buttStart);
+    ctx.lineTo(4.8, buttStart + buttLen);
+    ctx.lineTo(-4.8, buttStart + buttLen);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#52525b';
+    ctx.beginPath();
+    ctx.roundRect(-4.8, buttStart + buttLen, 9.6, 4, 1.5);
+    ctx.fill();
+
+    ctx.restore();
+  };
+
+  const drawTrajectoryGuide = (ctx, startX, startY, rad, engine) => {
+    let currX = startX;
+    let currY = startY;
+    let vx = Math.cos(rad);
+    let vy = Math.sin(rad);
+
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = engine.gameState === 'BREAK_AIM' ? '#38bdf8' : '#f59e0b';
+
+    ctx.beginPath();
+    ctx.moveTo(currX, currY);
+
+    const step = 4;
+    let hitBall = null;
+    let hitPoint = null;
+
+    for (let d = 0; d < 620; d += step) {
+      currX += vx * step;
+      currY += vy * step;
+
+      if (currX <= CUSHION_WIDTH + BALL_RADIUS) {
+        currX = CUSHION_WIDTH + BALL_RADIUS;
+        vx = -vx;
+        ctx.lineTo(currX, currY);
+      } else if (currX >= V_WIDTH - CUSHION_WIDTH - BALL_RADIUS) {
+        currX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS;
+        vx = -vx;
+        ctx.lineTo(currX, currY);
+      }
+
+      if (currY <= CUSHION_WIDTH + BALL_RADIUS) {
+        currY = CUSHION_WIDTH + BALL_RADIUS;
+        vy = -vy;
+        ctx.lineTo(currX, currY);
+      }
+
+      for (const b of engine.balls) {
+        if (b.isPotted) continue;
+        const dist = Math.hypot(currX - b.x, currY - b.y);
+        if (dist <= BALL_RADIUS * 2) {
+          hitBall = b;
+          hitPoint = { x: currX, y: currY };
+          break;
+        }
+      }
+
+      if (hitBall) break;
+    }
+
+    ctx.lineTo(currX, currY);
+    ctx.stroke();
+    ctx.restore();
+
+    if (hitPoint && hitBall) {
+      ctx.save();
+      ctx.strokeStyle = hitBall.type === 'RED' ? '#22c55e' : '#eab308';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hitPoint.x, hitPoint.y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const defX = hitBall.x - hitPoint.x;
+      const defY = hitBall.y - hitPoint.y;
+      const defDist = Math.hypot(defX, defY) || 1;
+      ctx.strokeStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.moveTo(hitBall.x, hitBall.y);
+      ctx.lineTo(hitBall.x + (defX / defDist) * 32, hitBall.y + (defY / defDist) * 32);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  const draw3DSphericalBall = (ctx, x, y, radius, color) => {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(x + 1.5, y + 2.5, radius * 0.95, radius * 0.75, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const grad = ctx.createRadialGradient(
+      x - radius * 0.35,
+      y - radius * 0.35,
+      radius * 0.08,
+      x,
+      y,
+      radius
+    );
+    grad.addColorStop(0, color.specular || '#ffffff');
+    grad.addColorStop(0.32, color.hex);
+    grad.addColorStop(0.88, color.darkHex || '#000000');
+    grad.addColorStop(1, '#09090b');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.32, y - radius * 0.32, radius * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawCanvas = (ctx, engine) => {
+    ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+    // Hardwood Cushion Rails
+    ctx.fillStyle = '#1c130d';
+    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+    ctx.fillStyle = '#2b160e';
+    ctx.fillRect(8, 8, V_WIDTH - 16, V_HEIGHT - 16);
+
+    // Baize Cloth
+    const clothGrad = ctx.createRadialGradient(225, 400, 50, 225, 400, 480);
+    clothGrad.addColorStop(0, '#15803d');
+    clothGrad.addColorStop(0.75, '#166534');
+    clothGrad.addColorStop(1, '#0e3e1f');
+    ctx.fillStyle = clothGrad;
+    ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH, V_WIDTH - CUSHION_WIDTH * 2, V_HEIGHT - CUSHION_WIDTH * 2);
+
+    // Cushion Edge Shadows
+    ctx.fillStyle = '#064e3b';
+    ctx.fillRect(CUSHION_WIDTH, CUSHION_WIDTH - 6, V_WIDTH - CUSHION_WIDTH * 2, 6);
+    ctx.fillRect(CUSHION_WIDTH - 6, CUSHION_WIDTH, 6, V_HEIGHT - CUSHION_WIDTH * 2);
+    ctx.fillRect(V_WIDTH - CUSHION_WIDTH, CUSHION_WIDTH, 6, V_HEIGHT - CUSHION_WIDTH * 2);
+
+    // Baulk Line & D
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(CUSHION_WIDTH, 620);
+    ctx.lineTo(V_WIDTH - CUSHION_WIDTH, 620);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(225, 620, 55, 0, Math.PI, false);
+    ctx.stroke();
+
+    // Spot markers
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    Object.values(COLOR_SPOTS).forEach(s => {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Pockets
+    engine.pockets.forEach(p => {
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, POCKET_RADIUS + 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#09090b';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, POCKET_RADIUS - 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 1. ROUND CLEARANCE: RENDER BIKINI RING GIRL CARD PARADE!
+    if (engine.gameState === 'ROUND_WALK') {
+      drawRingGirlParade(ctx, engine);
+      return;
+    }
+
+    // Trajectory guide & Vertical Cue Stick
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
+      const cueAngleRad = (engine.aimOffsetDeg * Math.PI) / 180;
+      drawAuthenticCueStick(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, cueAngleRad);
+    }
+
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
+      const rad = (-90 + engine.aimOffsetDeg) * (Math.PI / 180);
+      drawTrajectoryGuide(ctx, engine.paddle.x, PADDLE_Y - BALL_RADIUS - 7, rad, engine);
+    }
+
+    // Adaptive Wing Paddle
+    const paddle = engine.paddle;
+    const leftWing = paddle.leftWing || paddle.width / 2;
+    const rightWing = paddle.rightWing || paddle.width / 2;
+    const padL = paddle.x - leftWing;
+    const padW = leftWing + rightWing;
+    const padT = paddle.y - paddle.height / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.roundRect(padL + 2, padT + 4, padW, paddle.height, 6);
+    ctx.fill();
+
+    const padGrad = ctx.createLinearGradient(padL, padT, padL, padT + paddle.height);
+    padGrad.addColorStop(0, '#38bdf8');
+    padGrad.addColorStop(0.25, '#1e293b');
+    padGrad.addColorStop(0.75, '#0f172a');
+    padGrad.addColorStop(1, '#0284c7');
+    ctx.fillStyle = padGrad;
+    ctx.beginPath();
+    ctx.roundRect(padL, padT, padW, paddle.height, 6);
+    ctx.fill();
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(paddle.x, paddle.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (leftWing < 42) {
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(padL, padT + 2, 2.5, paddle.height - 4);
+    }
+    if (rightWing < 42) {
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(padL + padW - 2.5, padT + 2, 2.5, paddle.height - 4);
+    }
+
+    // Cue Dock Halo
+    if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(paddle.x, PADDLE_Y - BALL_RADIUS - 7, BALL_RADIUS + 3.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Particles
+    engine.particles.forEach(pt => {
+      ctx.save();
+      ctx.globalAlpha = pt.alpha;
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Object Balls
+    engine.balls.forEach(ball => {
+      if (ball.isPotted) return;
+      draw3DSphericalBall(ctx, ball.x, ball.y, ball.radius * ball.scale, SNOOKER_COLORS[ball.type]);
+
+      // Golden Ball Pulsing Halo
+      if (ball.type === 'GOLD') {
+        const pulse = (Math.sin(Date.now() * 0.006) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(251, 191, 36, ${0.4 + pulse * 0.5})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius + 3 + pulse * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
+
+    // Cue Ball
+    const cue = engine.cueBall;
+    if (!cue.potted) {
+      draw3DSphericalBall(ctx, cue.x, cue.y, cue.radius * cue.scale, SNOOKER_COLORS.WHITE);
+    }
+  };
+
+  const handleCopyScore = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const potString = historyPots.slice(0, 14).join('') || '🔴';
+    const text = `🥊 Snookong World Champion (${today})
+Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
+Sequence: ${potString}
+Play on pottheblack.com/games/snookong`;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedToast(true);
+        setTimeout(() => setCopiedToast(false), 2200);
+      });
+    }
+  };
+
+  const getTargetBadge = () => {
+    if (gameState === 'ROUND_WALK') {
+      return {
+        label: `ROUND ${round + 1} READY 🥊`,
+        bg: 'bg-amber-500/30 text-amber-200 border-amber-400 font-black animate-pulse',
+        dot: 'bg-amber-400 shadow-amber-400'
+      };
+    }
+    if (targetBallType === 'RED') {
+      return {
+        label: 'ON: RED (+1)',
+        bg: 'bg-rose-500/20 text-rose-300 border-rose-500/50',
+        dot: 'bg-rose-500 shadow-rose-500/50'
+      };
+    }
+    if (targetBallType === 'ANY_COLOR') {
+      return {
+        label: round >= 2 ? 'ON: ANY COLOR / GOLD (+20)' : 'ON: ANY COLOR',
+        bg: 'bg-amber-500/20 text-amber-300 border-amber-500/50 animate-pulse',
+        dot: 'bg-amber-400 shadow-amber-400/50'
+      };
+    }
+    const col = SNOOKER_COLORS[targetBallType];
+    return {
+      label: `ON: ${col?.name ? col.name.toUpperCase() : 'COLOR'} (+${col?.value ?? 0})`,
+      bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50',
+      dot: 'bg-emerald-400'
+    };
+  };
+
+  // Main Canvas & Simulation Lifecycle: Mounts once and never reracks on state change
   useEffect(() => {
     setupRack(1);
     const canvas = canvasRef.current;
@@ -1690,361 +2164,7 @@ export default function SnookongGame() {
 
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, []); // Strictly empty dependency array: mounts once and never resets the game on reactive state updates
-
-  const drawRingGirlParade = (ctx, engine) => {
-    const p = engine.ringGirlWalkProgress || 0;
-    const nextRnd = engine.round + 1;
-
-    const minPx = 80;
-    const maxPx = V_WIDTH - 80;
-    const minPy = 110;
-    const maxPy = V_HEIGHT - 120;
-    const leg1 = maxPx - minPx;
-    const leg2 = maxPy - minPy;
-    const leg3 = maxPx - minPx;
-    const leg4 = maxPy - minPy;
-    const totalDist = leg1 + leg2 + leg3 + leg4;
-
-    const currDist = p * totalDist;
-    let gx = minPx;
-    let gy = minPy;
-    let facing = 1;
-
-    if (currDist < leg1) {
-      gx = minPx + currDist;
-      gy = minPy;
-      facing = 1;
-    } else if (currDist < leg1 + leg2) {
-      gx = maxPx;
-      gy = minPy + (currDist - leg1);
-      facing = 1;
-    } else if (currDist < leg1 + leg2 + leg3) {
-      gx = maxPx - (currDist - leg1 - leg2);
-      gy = maxPy;
-      facing = -1;
-    } else {
-      gx = minPx;
-      gy = maxPy - (currDist - leg1 - leg2 - leg3);
-      facing = -1;
-    }
-
-    ctx.save();
-    const spot = ctx.createRadialGradient(gx, gy, 15, gx, gy, 140);
-    spot.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
-    spot.addColorStop(0.7, 'rgba(236, 72, 153, 0.15)');
-    spot.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = spot;
-    ctx.beginPath();
-    ctx.arc(gx, gy, 140, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(gx, gy);
-
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(0, 36, 18, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const walkStep = Math.sin(p * 45) * 6;
-    ctx.fillStyle = '#fbcfe8';
-    ctx.fillRect(-6 + walkStep, 14, 5, 20);
-    ctx.fillRect(2 - walkStep, 14, 5, 20);
-
-    ctx.fillStyle = '#e11d48';
-    ctx.fillRect(-7 + walkStep, 32, 6, 4);
-    ctx.fillRect(1 - walkStep, 32, 6, 4);
-
-    ctx.fillStyle = '#e11d48';
-    ctx.beginPath();
-    ctx.moveTo(-9, 14);
-    ctx.lineTo(9, 14);
-    ctx.lineTo(0, 24);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#fbcfe8';
-    ctx.fillRect(-7, -4, 14, 18);
-
-    ctx.fillStyle = '#e11d48';
-    ctx.beginPath();
-    ctx.arc(-4, -6, 5, 0, Math.PI * 2);
-    ctx.arc(4, -6, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#fbcfe8';
-    ctx.beginPath();
-    ctx.arc(0, -18, 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#fef08a';
-    ctx.beginPath();
-    ctx.arc(0, -20, 8.5, Math.PI, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(facing * -8, -16, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#fbcfe8';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(-7, -6);
-    ctx.lineTo(-14, -30);
-    ctx.moveTo(7, -6);
-    ctx.lineTo(14, -30);
-    ctx.stroke();
-
-    const cardW = 92;
-    const cardH = 34;
-    const cardY = -66 + Math.sin(p * 30) * 3;
-
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.roundRect(-cardW / 2, cardY, cardW, cardH, 5);
-    ctx.fill();
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#f59e0b';
-    ctx.font = 'black 11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`ROUND ${nextRnd}`, 0, cardY + 12);
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 8px sans-serif';
-    ctx.fillText('CRUCIBLE TITLE', 0, cardY + 24);
-
-    ctx.restore();
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.beginPath();
-    ctx.roundRect(135, 375, 180, 46, 8);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`ROUND ${nextRnd} UP NEXT!`, 225, 393);
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '9px sans-serif';
-    ctx.fillText('Tap table or press Space to skip', 225, 408);
-    ctx.restore();
-  };
-
-  const drawAuthenticCueStick = (ctx, ballX, ballY, angleRad) => {
-    ctx.save();
-    ctx.translate(ballX, ballY);
-    ctx.rotate(angleRad);
-
-    const tipDist = BALL_RADIUS + 4;
-    const shaftLen = 65;
-    const buttLen = 45;
-
-    ctx.fillStyle = '#0284c7';
-    ctx.beginPath();
-    ctx.roundRect(-2.2, tipDist, 4.4, 3, 1);
-    ctx.fill();
-
-    ctx.fillStyle = '#eab308';
-    ctx.fillRect(-2.4, tipDist + 3, 4.8, 4);
-
-    const shaftStart = tipDist + 7;
-    const shaftGrad = ctx.createLinearGradient(-3.5, shaftStart, 3.5, shaftStart);
-    shaftGrad.addColorStop(0, '#fef3c7');
-    shaftGrad.addColorStop(0.5, '#fde68a');
-    shaftGrad.addColorStop(1, '#d97706');
-    ctx.fillStyle = shaftGrad;
-
-    ctx.beginPath();
-    ctx.moveTo(-2.4, shaftStart);
-    ctx.lineTo(2.4, shaftStart);
-    ctx.lineTo(3.8, shaftStart + shaftLen);
-    ctx.lineTo(-3.8, shaftStart + shaftLen);
-    ctx.closePath();
-    ctx.fill();
-
-    const buttStart = shaftStart + shaftLen;
-    const buttGrad = ctx.createLinearGradient(-5, buttStart, 5, buttStart);
-    buttGrad.addColorStop(0, '#18181b');
-    buttGrad.addColorStop(0.5, '#27272a');
-    buttGrad.addColorStop(1, '#09090b');
-    ctx.fillStyle = buttGrad;
-
-    ctx.beginPath();
-    ctx.moveTo(-3.8, buttStart);
-    ctx.lineTo(3.8, buttStart);
-    ctx.lineTo(4.8, buttStart + buttLen);
-    ctx.lineTo(-4.8, buttStart + buttLen);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#52525b';
-    ctx.beginPath();
-    ctx.roundRect(-4.8, buttStart + buttLen, 9.6, 4, 1.5);
-    ctx.fill();
-
-    ctx.restore();
-  };
-
-  const drawTrajectoryGuide = (ctx, startX, startY, rad, engine) => {
-    let currX = startX;
-    let currY = startY;
-    let vx = Math.cos(rad);
-    let vy = Math.sin(rad);
-
-    ctx.save();
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = engine.gameState === 'BREAK_AIM' ? '#38bdf8' : '#f59e0b';
-
-    ctx.beginPath();
-    ctx.moveTo(currX, currY);
-
-    const step = 4;
-    let hitBall = null;
-    let hitPoint = null;
-
-    for (let d = 0; d < 620; d += step) {
-      currX += vx * step;
-      currY += vy * step;
-
-      if (currX <= CUSHION_WIDTH + BALL_RADIUS) {
-        currX = CUSHION_WIDTH + BALL_RADIUS;
-        vx = -vx;
-        ctx.lineTo(currX, currY);
-      } else if (currX >= V_WIDTH - CUSHION_WIDTH - BALL_RADIUS) {
-        currX = V_WIDTH - CUSHION_WIDTH - BALL_RADIUS;
-        vx = -vx;
-        ctx.lineTo(currX, currY);
-      }
-
-      if (currY <= CUSHION_WIDTH + BALL_RADIUS) {
-        currY = CUSHION_WIDTH + BALL_RADIUS;
-        vy = -vy;
-        ctx.lineTo(currX, currY);
-      }
-
-      for (const b of engine.balls) {
-        if (b.isPotted) continue;
-        const dist = Math.hypot(currX - b.x, currY - b.y);
-        if (dist <= BALL_RADIUS * 2) {
-          hitBall = b;
-          hitPoint = { x: currX, y: currY };
-          break;
-        }
-      }
-
-      if (hitBall) break;
-    }
-
-    ctx.lineTo(currX, currY);
-    ctx.stroke();
-    ctx.restore();
-
-    if (hitPoint && hitBall) {
-      ctx.save();
-      ctx.strokeStyle = hitBall.type === 'RED' ? '#22c55e' : '#eab308';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(hitPoint.x, hitPoint.y, BALL_RADIUS, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const defX = hitBall.x - hitPoint.x;
-      const defY = hitBall.y - hitPoint.y;
-      const defDist = Math.hypot(defX, defY) || 1;
-      ctx.strokeStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.moveTo(hitBall.x, hitBall.y);
-      ctx.lineTo(hitBall.x + (defX / defDist) * 32, hitBall.y + (defY / defDist) * 32);
-      ctx.stroke();
-      ctx.restore();
-    }
-  };
-
-  const draw3DSphericalBall = (ctx, x, y, radius, color) => {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.beginPath();
-    ctx.ellipse(x + 1.5, y + 2.5, radius * 0.95, radius * 0.75, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const grad = ctx.createRadialGradient(
-      x - radius * 0.35,
-      y - radius * 0.35,
-      radius * 0.08,
-      x,
-      y,
-      radius
-    );
-    grad.addColorStop(0, color.specular || '#ffffff');
-    grad.addColorStop(0.32, color.hex);
-    grad.addColorStop(0.88, color.darkHex || '#000000');
-    grad.addColorStop(1, '#09090b');
-
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
-    ctx.beginPath();
-    ctx.arc(x - radius * 0.32, y - radius * 0.32, radius * 0.22, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  const handleCopyScore = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const potString = historyPots.slice(0, 14).join('') || '🔴';
-    const text = `🥊 Snookong World Champion (${today})
-Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
-Sequence: ${potString}
-Play on pottheblack.com/games/snookong`;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopiedToast(true);
-        setTimeout(() => setCopiedToast(false), 2200);
-      });
-    }
-  };
-
-  const getTargetBadge = () => {
-    if (gameState === 'ROUND_WALK') {
-      return {
-        label: `ROUND ${round + 1} READY 🥊`,
-        bg: 'bg-amber-500/30 text-amber-200 border-amber-400 font-black animate-pulse',
-        dot: 'bg-amber-400 shadow-amber-400'
-      };
-    }
-    if (targetBallType === 'RED') {
-      return {
-        label: 'ON: RED (+1)',
-        bg: 'bg-rose-500/20 text-rose-300 border-rose-500/50',
-        dot: 'bg-rose-500 shadow-rose-500/50'
-      };
-    }
-    if (targetBallType === 'ANY_COLOR') {
-      return {
-        label: round >= 2 ? 'ON: ANY COLOR / GOLD (+20)' : 'ON: ANY COLOR',
-        bg: 'bg-amber-500/20 text-amber-300 border-amber-500/50 animate-pulse',
-        dot: 'bg-amber-400 shadow-amber-400/50'
-      };
-    }
-    const col = SNOOKER_COLORS[targetBallType];
-    return {
-      label: `ON: ${col?.name.toUpperCase()} (+${col?.value})`,
-      bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50',
-      dot: 'bg-emerald-400'
-    };
-  };
+  }, []);
 
   const badge = getTargetBadge();
 
