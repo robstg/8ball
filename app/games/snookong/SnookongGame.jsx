@@ -47,9 +47,9 @@ const SHOT_TIME_STEPS = Math.round((SHOT_TIME_SECONDS * 1000) / FIXED_STEP_MS);
 
 // 15-step ascending pentatonic scale spanning 3 octaves for streak juice
 const PENTATONIC_SCALE = [
-  261.63, 293.66, 329.63, 392.00, 440.00, // C4, D4, E4, G4, A4
-  523.25, 587.33, 659.25, 783.99, 880.00, // C5, D5, E5, G5, A5
-  1046.50, 1174.66, 1318.51, 1567.98, 1760.00 // C6, D6, E6, G6, A6
+  261.63, 293.66, 329.63, 392.00, 440.00,
+  523.25, 587.33, 659.25, 783.99, 880.00,
+  1046.50, 1174.66, 1318.51, 1567.98, 1760.00
 ];
 
 const SNOOKER_COLORS = {
@@ -267,7 +267,6 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Ascending Pentatonic scale layered into every potted ball
   playPocketDrop(colorValue = 1, streakCount = 1) {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -302,7 +301,6 @@ class RealisticSoundEngine {
           osc2.start(t);
           osc2.stop(t + 0.035);
 
-          // Ascending musical chime mapped along pentatonic scale
           const noteIdx = Math.min(PENTATONIC_SCALE.length - 1, Math.max(0, streakCount - 1));
           const targetNote = PENTATONIC_SCALE[noteIdx];
 
@@ -317,7 +315,6 @@ class RealisticSoundEngine {
           streakOsc.start(t);
           streakOsc.stop(t + 0.3);
 
-          // Harmonic sparkle octave above
           const harmOsc = this.ctx.createOscillator();
           const harmGain = this.ctx.createGain();
           harmOsc.type = 'triangle';
@@ -333,12 +330,11 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  // Celebratory 3x Hot Pocket cash & bell arpeggio
   playHotPocketChime() {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
       notes.forEach((freq, idx) => {
         const t = now + idx * 0.045;
         const osc = this.ctx.createOscillator();
@@ -968,7 +964,6 @@ export default function SnookongGame() {
     const engine = engineRef.current;
     ball.isPotted = true;
 
-    // Check if ball dropped into an active 3x Hot Pocket
     const isHotPocket = engine.hotPocket && 
                         engine.hotPocket.active && 
                         pocketIndex !== null && 
@@ -983,7 +978,6 @@ export default function SnookongGame() {
       spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
     }
 
-    // Play ascending pentatonic chime scaled to the length of the break
     const streakStep = engine.potLog.length + 1;
     soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1, streakStep);
 
@@ -1267,22 +1261,18 @@ export default function SnookongGame() {
       isDrag: false
     };
 
-    if (e.pointerType === 'touch') {
-      updatePaddlePositionFromClientX(e.clientX);
-    }
+    updatePaddlePositionFromClientX(e.clientX);
   };
 
   const handlePointerMove = (e) => {
     if (engineRef.current.gameState === 'ROUND_WALK') return;
     const dx = e.clientX - pointerStartRef.current.x;
     const dy = e.clientY - pointerStartRef.current.y;
-    if (Math.hypot(dx, dy) > 10) {
+    if (Math.hypot(dx, dy) > 12) {
       pointerStartRef.current.isDrag = true;
     }
 
-    if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.buttons > 0) {
-      updatePaddlePositionFromClientX(e.clientX);
-    }
+    updatePaddlePositionFromClientX(e.clientX);
   };
 
   const handlePointerUp = (e) => {
@@ -1302,9 +1292,10 @@ export default function SnookongGame() {
     const dy = e.clientY - pointerStartRef.current.y;
     const dist = Math.hypot(dx, dy);
 
-    const isClickOrTap = !pointerStartRef.current.isDrag && dist < 14 && duration < 600;
+    const isMouseFire = e.pointerType === 'mouse' && dist < 24;
+    const isTouchTap = e.pointerType === 'touch' && !pointerStartRef.current.isDrag && dist < 20 && duration < 600;
 
-    if (isAimingState() && isClickOrTap) {
+    if (isAimingState() && (isMouseFire || isTouchTap)) {
       fireShot();
     }
   };
@@ -1677,7 +1668,6 @@ export default function SnookongGame() {
       if (isHot) {
         const pulse = (Math.sin(Date.now() * 0.009) + 1) * 0.5;
 
-        // Radiant Outer Glow Rings
         ctx.save();
         ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.5})`;
         ctx.lineWidth = 3.5;
@@ -1694,7 +1684,6 @@ export default function SnookongGame() {
         ctx.stroke();
         ctx.restore();
 
-        // 3X Beacon Label
         ctx.save();
         ctx.fillStyle = '#fbbf24';
         ctx.font = '900 11px sans-serif';
@@ -1815,52 +1804,6 @@ export default function SnookongGame() {
     }
   };
 
-  const handleCopyScore = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const potString = historyPots.slice(0, 14).join('') || '🔴';
-    const text = `🥊 Snookong World Champion (${today})
-Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
-Sequence: ${potString}
-Play on pottheblack.com/games/snookong`;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopiedToast(true);
-        setTimeout(() => setCopiedToast(false), 2200);
-      });
-    }
-  };
-
-  const getTargetBadge = () => {
-    if (gameState === 'ROUND_WALK') {
-      return {
-        label: `ROUND ${round + 1} READY 🥊`,
-        bg: 'bg-amber-500/30 text-amber-200 border-amber-400 font-black animate-pulse',
-        dot: 'bg-amber-400 shadow-amber-400'
-      };
-    }
-    if (targetBallType === 'RED') {
-      return {
-        label: 'ON: RED (+1)',
-        bg: 'bg-rose-500/20 text-rose-300 border-rose-500/50',
-        dot: 'bg-rose-500 shadow-rose-500/50'
-      };
-    }
-    if (targetBallType === 'ANY_COLOR') {
-      return {
-        label: round >= 2 ? 'ON: ANY COLOR / GOLD (+20)' : 'ON: ANY COLOR',
-        bg: 'bg-amber-500/20 text-amber-300 border-amber-500/50 animate-pulse',
-        dot: 'bg-amber-400 shadow-amber-400/50'
-      };
-    }
-    const col = SNOOKER_COLORS[targetBallType];
-    return {
-      label: `ON: ${col?.name ? col.name.toUpperCase() : 'COLOR'} (+${col?.value ?? 0})`,
-      bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50',
-      dot: 'bg-emerald-400'
-    };
-  };
-
   // Dedicated Mount Lifecycle: Sets up game once and ensures stable simulation loop
   useEffect(() => {
     setupRack(1);
@@ -1873,6 +1816,8 @@ Play on pottheblack.com/games/snookong`;
 
     const stepSimulation = () => {
       const engine = engineRef.current;
+      const paddle = engine.paddle;
+      const cue = engine.cueBall;
 
       if (engine.gameState === 'ROUND_WALK') {
         engine.ringGirlWalkProgress = (engine.ringGirlWalkProgress || 0) + 0.0055;
@@ -1885,14 +1830,14 @@ Play on pottheblack.com/games/snookong`;
       if (engine.gameState === 'GAMEOVER') return;
 
       // Hot Pocket Multiplier Timer Management
-      if (cue.active && engine.gameState === 'PLAYING') {
+      if (cue && cue.active && engine.gameState === 'PLAYING' && engine.hotPocket) {
         if (!engine.hotPocket.active) {
           engine.hotPocket.nextTriggerSteps = (engine.hotPocket.nextTriggerSteps || 450) - 1;
           if (engine.hotPocket.nextTriggerSteps <= 0) {
             engine.hotPocket.active = true;
             engine.hotPocket.pocketIndex = Math.floor(Math.random() * engine.pockets.length);
-            engine.hotPocket.stepsRemaining = 600; // 10 seconds of 3x multiplier
-            engine.hotPocket.nextTriggerSteps = 900 + Math.floor(Math.random() * 600); // 15-25s delay
+            engine.hotPocket.stepsRemaining = 600;
+            engine.hotPocket.nextTriggerSteps = 900 + Math.floor(Math.random() * 600);
           }
         } else {
           engine.hotPocket.stepsRemaining = (engine.hotPocket.stepsRemaining || 0) - 1;
@@ -1901,8 +1846,6 @@ Play on pottheblack.com/games/snookong`;
           }
         }
       }
-
-      const paddle = engine.paddle;
 
       const liveReds = countActiveReds(engine);
       if (engine.redsRemaining !== liveReds) {
@@ -1935,8 +1878,6 @@ Play on pottheblack.com/games/snookong`;
       paddle.leftWing = Math.min(baseHalf, Math.max(BALL_RADIUS + 2, distLeft));
       paddle.rightWing = Math.min(baseHalf, Math.max(BALL_RADIUS + 2, distRight));
       paddle.width = paddle.leftWing + paddle.rightWing;
-
-      const cue = engine.cueBall;
 
       if (engine.gameState === 'BREAK_AIM' || engine.gameState === 'BALL_IN_HAND' || engine.gameState === 'RE_AIM') {
         cue.x = paddle.x;
