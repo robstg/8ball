@@ -45,7 +45,6 @@ const MAX_STEPS_PER_FRAME = 5;
 const SHOT_TIME_SECONDS = 10;
 const SHOT_TIME_STEPS = Math.round((SHOT_TIME_SECONDS * 1000) / FIXED_STEP_MS);
 
-// 15-step ascending pentatonic scale spanning 3 octaves for streak audio feedback
 const PENTATONIC_SCALE = [
   261.63, 293.66, 329.63, 392.00, 440.00,
   523.25, 587.33, 659.25, 783.99, 880.00,
@@ -1667,7 +1666,7 @@ export default function SnookongGame() {
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
-          removeGoldenBall(engine); // Golden Ball is immediately taken off the table for clearance
+          removeGoldenBall(engine);
           soundRef.current?.playPhaseTransition();
           const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! ' : '';
           dockForReaim(`${hotPrefix}${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
@@ -1893,7 +1892,6 @@ export default function SnookongGame() {
           engine.hotPocket.nextTriggerSteps = (engine.hotPocket.nextTriggerSteps || 450) - 1;
           if (engine.hotPocket.nextTriggerSteps <= 0) {
             engine.hotPocket.active = true;
-            // Restricted strictly to the top 4 pockets: Top-Left (0), Top-Right (1), Mid-Left (2), Mid-Right (3)
             engine.hotPocket.pocketIndex = Math.floor(Math.random() * 4);
             engine.hotPocket.stepsRemaining = 600;
             engine.hotPocket.nextTriggerSteps = 900 + Math.floor(Math.random() * 600);
@@ -2308,6 +2306,24 @@ export default function SnookongGame() {
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
   }, [removeGoldenBall]);
+
+  const badge = getTargetBadge(gameState, round, targetBallType);
+
+  const handleCopyScore = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const potString = historyPots.slice(0, 14).join('') || '🔴';
+    const text = `🥊 Snookong World Champion (${today})
+Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
+Sequence: ${potString}
+Play on pottheblack.com/games/snookong`;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedToast(true);
+        setTimeout(() => setCopiedToast(false), 2200);
+      });
+    }
+  };
 
   return (
     <main
