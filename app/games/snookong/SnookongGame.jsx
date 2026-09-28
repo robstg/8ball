@@ -115,7 +115,7 @@ function getTargetBadge(gameState, round, targetBallType) {
     return {
       label: round >= 2 ? 'ON: ANY COLOR / GOLD (+20)' : 'ON: ANY COLOR',
       bg: 'bg-amber-500/20 text-amber-300 border-amber-500/50 animate-pulse',
-      dot: 'bg-amber-400 shadow-amber-400/50'
+      dot: 'bg-amber-400 shadow-amber-400'
     };
   }
   const col = SNOOKER_COLORS[targetBallType];
@@ -537,7 +537,6 @@ class RealisticSoundEngine {
   }
 }
 
-// Module-Level Drawing Functions: Decoupled from React render cycle
 function drawRingGirlParade(ctx, engine) {
   const p = engine.ringGirlWalkProgress || 0;
   const nextRnd = engine.round + 1;
@@ -891,7 +890,7 @@ function drawCanvas(ctx, engine) {
     ctx.fill();
   });
 
-  // Pockets with Timed 3X Hot Pocket Glow
+  // Pockets with Timed 3X Hot Pocket Glow (Top 4 Pockets Only)
   engine.pockets.forEach((p, pIdx) => {
     const isHot = engine.hotPocket && engine.hotPocket.active && engine.hotPocket.pocketIndex === pIdx;
 
@@ -1116,6 +1115,28 @@ export default function SnookongGame() {
     isBreakShot: true,
     potLog: []
   });
+
+  const removeGoldenBall = useCallback((engine) => {
+    if (!engine || !engine.balls) return;
+    const goldBall = engine.balls.find(b => b.type === 'GOLD' && !b.isPotted);
+    if (goldBall) {
+      goldBall.isPotted = true;
+      for (let i = 0; i < 22; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.0 + Math.random() * 3.0;
+        engine.particles.push({
+          x: goldBall.x,
+          y: goldBall.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 2 + Math.random() * 2.5,
+          color: '#fbbf24',
+          alpha: 1.0,
+          decay: 0.02 + Math.random() * 0.02
+        });
+      }
+    }
+  }, []);
 
   const setupRack = useCallback((targetRound = 1) => {
     const engine = engineRef.current;
@@ -1391,6 +1412,7 @@ export default function SnookongGame() {
 
     if (engine.phase === 'CLEARANCE' || actualReds === 0) {
       engine.phase = 'CLEARANCE';
+      removeGoldenBall(engine);
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = nextTarget;
       setTargetBallType(nextTarget);
@@ -1422,6 +1444,7 @@ export default function SnookongGame() {
 
     if (engine.phase === 'CLEARANCE' || actualReds === 0) {
       engine.phase = 'CLEARANCE';
+      removeGoldenBall(engine);
       const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = nextTarget;
       setTargetBallType(nextTarget);
@@ -1644,6 +1667,7 @@ export default function SnookongGame() {
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
+          removeGoldenBall(engine); // Golden Ball is immediately taken off the table for clearance
           soundRef.current?.playPhaseTransition();
           const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! ' : '';
           dockForReaim(`${hotPrefix}${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
@@ -1698,11 +1722,12 @@ export default function SnookongGame() {
     const actualReds = countActiveReds(engine);
     if (actualReds === 0 && (targetBallType === 'RED' || engine.targetState === 'RED')) {
       engine.phase = 'CLEARANCE';
+      removeGoldenBall(engine);
       const target = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
       engine.targetState = target;
       setTargetBallType(target);
     }
-  }, [redsLeft, targetBallType]);
+  }, [redsLeft, targetBallType, removeGoldenBall]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1868,7 +1893,8 @@ export default function SnookongGame() {
           engine.hotPocket.nextTriggerSteps = (engine.hotPocket.nextTriggerSteps || 450) - 1;
           if (engine.hotPocket.nextTriggerSteps <= 0) {
             engine.hotPocket.active = true;
-            engine.hotPocket.pocketIndex = Math.floor(Math.random() * engine.pockets.length);
+            // Restricted strictly to the top 4 pockets: Top-Left (0), Top-Right (1), Mid-Left (2), Mid-Right (3)
+            engine.hotPocket.pocketIndex = Math.floor(Math.random() * 4);
             engine.hotPocket.stepsRemaining = 600;
             engine.hotPocket.nextTriggerSteps = 900 + Math.floor(Math.random() * 600);
           }
@@ -1887,6 +1913,7 @@ export default function SnookongGame() {
       }
       if (liveReds === 0 && engine.targetState === 'RED') {
         engine.phase = 'CLEARANCE';
+        removeGoldenBall(engine);
         const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex] || 'YELLOW';
         engine.targetState = nextTarget;
         setTargetBallType(nextTarget);
@@ -2280,25 +2307,7 @@ export default function SnookongGame() {
 
     animationFrameId = requestAnimationFrame(runPhysicsLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
-  const badge = getTargetBadge(gameState, round, targetBallType);
-
-  const handleCopyScore = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const potString = historyPots.slice(0, 14).join('') || '🔴';
-    const text = `🥊 Snookong World Champion (${today})
-Round Reached: ${round} | Final Break: ${highestBreak} pts | Score: ${score}
-Sequence: ${potString}
-Play on pottheblack.com/games/snookong`;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopiedToast(true);
-        setTimeout(() => setCopiedToast(false), 2200);
-      });
-    }
-  };
+  }, [removeGoldenBall]);
 
   return (
     <main
@@ -2632,13 +2641,13 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on. Once legal first contact is established, secondary cannons into other balls are completely legal.
               </li>
               <li>
-                <strong className="text-amber-300">3X Hot Pockets:</strong> Watch for pockets that randomly ignite with a golden neon halo for 10 seconds. Sinking any active ball into a Hot Pocket multiplies all points by $3\times$!
+                <strong className="text-amber-300">3X Hot Pockets:</strong> One of the top 4 pockets will randomly ignite with a golden neon halo for 10 seconds. Sinking any active ball into a Hot Pocket multiplies its points by $3\times$!
               </li>
               <li>
                 <strong className="text-yellow-400">Ascending Break Scale:</strong> Consecutive pots climb an ascending musical pentatonic scale, ramping up audio intensity with every step of the break.
               </li>
               <li>
-                <strong className="text-amber-300">The 20-Point Golden Ball (Round 2+):</strong> In Round 2 and above, the sparkling Gold Ball sits atop the Black. Whenever you are on <strong>ANY COLOR</strong>, nominate the Golden Ball for a huge 20-point pot (or 60 points in a Hot Pocket!). Striking or potting it when on Red or during clearance incurs a 7-point foul.
+                <strong className="text-amber-300">The 20-Point Golden Ball (Round 2+):</strong> In Round 2 and above, the sparkling Gold Ball sits atop the Black. Whenever you are on <strong>ANY COLOR</strong>, nominate the Golden Ball for a huge 20-point pot (or 60 points in a Hot Pocket!). Once all reds are cleared, the Golden Ball is automatically removed so you can clear the regulation colors without fouls.
               </li>
               <li>
                 <strong className="text-emerald-400">Round Progression:</strong> Clear all 10 reds and all 6 colors to trigger the Crucible Ring Girl Round Walk, carry your break forward, and unlock the next championship round!
