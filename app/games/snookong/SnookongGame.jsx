@@ -16,10 +16,11 @@ import {
   Zap,
   ChevronLeft,
   Minus,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 
-const BUILD_DATE = '2026-09-27';
+const BUILD_DATE = '2026-09-28';
 
 const V_WIDTH = 450;
 const V_HEIGHT = 800;
@@ -43,6 +44,13 @@ const MAX_STEPS_PER_FRAME = 5;
 
 const SHOT_TIME_SECONDS = 10;
 const SHOT_TIME_STEPS = Math.round((SHOT_TIME_SECONDS * 1000) / FIXED_STEP_MS);
+
+// 15-step ascending pentatonic scale spanning 3 octaves for streak juice
+const PENTATONIC_SCALE = [
+  261.63, 293.66, 329.63, 392.00, 440.00, // C4, D4, E4, G4, A4
+  523.25, 587.33, 659.25, 783.99, 880.00, // C5, D5, E5, G5, A5
+  1046.50, 1174.66, 1318.51, 1567.98, 1760.00 // C6, D6, E6, G6, A6
+];
 
 const SNOOKER_COLORS = {
   RED: { name: 'Red', value: 1, hex: '#e11d48', darkHex: '#881337', specular: '#fda4af' },
@@ -259,7 +267,8 @@ class RealisticSoundEngine {
     } catch (e) {}
   }
 
-  playPocketDrop(colorValue = 1) {
+  // Ascending Pentatonic scale layered into every potted ball
+  playPocketDrop(colorValue = 1, streakCount = 1) {
     if (!this.enabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
@@ -293,18 +302,56 @@ class RealisticSoundEngine {
           osc2.start(t);
           osc2.stop(t + 0.035);
 
-          const sparkle = this.ctx.createOscillator();
-          const sparkleGain = this.ctx.createGain();
-          sparkle.type = 'sine';
-          sparkle.frequency.setValueAtTime(1900 + colorValue * 90, t);
-          sparkleGain.gain.setValueAtTime(0.11, t);
-          sparkleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-          sparkle.connect(sparkleGain);
-          sparkleGain.connect(this.ctx.destination);
-          sparkle.start(t);
-          sparkle.stop(t + 0.15);
+          // Ascending musical chime mapped along pentatonic scale
+          const noteIdx = Math.min(PENTATONIC_SCALE.length - 1, Math.max(0, streakCount - 1));
+          const targetNote = PENTATONIC_SCALE[noteIdx];
+
+          const streakOsc = this.ctx.createOscillator();
+          const streakGain = this.ctx.createGain();
+          streakOsc.type = 'sine';
+          streakOsc.frequency.setValueAtTime(targetNote, t);
+          streakGain.gain.setValueAtTime(0.18, t);
+          streakGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+          streakOsc.connect(streakGain);
+          streakGain.connect(this.ctx.destination);
+          streakOsc.start(t);
+          streakOsc.stop(t + 0.3);
+
+          // Harmonic sparkle octave above
+          const harmOsc = this.ctx.createOscillator();
+          const harmGain = this.ctx.createGain();
+          harmOsc.type = 'triangle';
+          harmOsc.frequency.setValueAtTime(targetNote * 2, t);
+          harmGain.gain.setValueAtTime(0.08, t);
+          harmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+          harmOsc.connect(harmGain);
+          harmGain.connect(this.ctx.destination);
+          harmOsc.start(t);
+          harmOsc.stop(t + 0.2);
         } catch (err) {}
-      }, 75);
+      }, 70);
+    } catch (e) {}
+  }
+
+  // Celebratory 3x Hot Pocket cash & bell arpeggio
+  playHotPocketChime() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+      notes.forEach((freq, idx) => {
+        const t = now + idx * 0.045;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.24, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.34);
+      });
     } catch (e) {}
   }
 
@@ -476,6 +523,7 @@ export default function SnookongGame() {
   const [potToast, setPotToast] = useState(null);
   const [shotClockKey, setShotClockKey] = useState(0);
   const [aimOffsetDeg, setAimOffsetDeg] = useState(0);
+  const [goldenBallBanner, setGoldenBallBanner] = useState(false);
 
   const keysPressed = useRef({ left: false, right: false });
   const pointerStartRef = useRef({ x: 0, y: 0, time: 0, isDrag: false });
@@ -490,6 +538,7 @@ export default function SnookongGame() {
     shotHadLegalContact: false,
     currentShotTarget: 'RED',
     ringGirlWalkProgress: 0,
+    hotPocket: { active: false, pocketIndex: null, stepsRemaining: 0, nextTriggerSteps: 450 },
     paddle: {
       x: PADDLE_DEFAULT_X,
       y: PADDLE_Y,
@@ -663,6 +712,7 @@ export default function SnookongGame() {
     engine.clearanceIndex = 0;
     engine.redsRemaining = 10;
     engine.particles = [];
+    engine.hotPocket = { active: false, pocketIndex: null, stepsRemaining: 0, nextTriggerSteps: 450 };
     engine.isBreakShot = true;
 
     setAimOffsetDeg(0);
@@ -676,12 +726,14 @@ export default function SnookongGame() {
     const nextRound = engineRef.current.round + 1;
     setupRack(nextRound);
     soundRef.current.playPhaseTransition();
-    setPotToast(
-      nextRound >= 2 
-        ? `🔥 ROUND ${nextRound}: THE GOLDEN BALL (+20) IS IN PLAY!` 
-        : `🔥 ROUND ${nextRound} BEGINS!`
-    );
-    setTimeout(() => setPotToast(null), 3000);
+
+    if (nextRound >= 2) {
+      setGoldenBallBanner(true);
+      setTimeout(() => setGoldenBallBanner(false), 7000);
+    } else {
+      setPotToast(`🔥 ROUND ${nextRound} BEGINS!`);
+      setTimeout(() => setPotToast(null), 3000);
+    }
   }, [setupRack]);
 
   const startNextRoundRef = useRef(startNextRound);
@@ -693,6 +745,10 @@ export default function SnookongGame() {
     soundRef.current.init();
     const engine = engineRef.current;
     
+    if (goldenBallBanner) {
+      setGoldenBallBanner(false);
+    }
+
     if (engine.gameState === 'ROUND_WALK') {
       startNextRound();
       return;
@@ -730,7 +786,7 @@ export default function SnookongGame() {
     engine.gameState = 'PLAYING';
     setGameState('PLAYING');
     setShotClockKey((k) => k + 1);
-  }, [startNextRound]);
+  }, [startNextRound, goldenBallBanner]);
 
   const restartGame = () => {
     const engine = engineRef.current;
@@ -745,6 +801,7 @@ export default function SnookongGame() {
     setLives(3);
     setHistoryPots([]);
     setFoulBanner(null);
+    setGoldenBallBanner(false);
     setIsNewBest(false);
   };
 
@@ -764,17 +821,17 @@ export default function SnookongGame() {
     engineRef.current.aimOffsetDeg = clamped;
   };
 
-  const spawnParticles = (x, y, color) => {
+  const spawnParticles = (x, y, color, count = 14) => {
     const engine = engineRef.current;
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 1.2 + Math.random() * 3.0;
+      const speed = 1.2 + Math.random() * 3.4;
       engine.particles.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        radius: 2 + Math.random() * 2.5,
+        radius: 2 + Math.random() * 2.8,
         color,
         alpha: 1.0,
         decay: 0.022 + Math.random() * 0.02
@@ -907,11 +964,28 @@ export default function SnookongGame() {
     ball.isPotted = false;
   };
 
-  const handlePotBall = (ball) => {
+  const handlePotBall = (ball, pocketIndex = null) => {
     const engine = engineRef.current;
     ball.isPotted = true;
-    soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1);
-    spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
+
+    // Check if ball dropped into an active 3x Hot Pocket
+    const isHotPocket = engine.hotPocket && 
+                        engine.hotPocket.active && 
+                        pocketIndex !== null && 
+                        engine.hotPocket.pocketIndex === pocketIndex;
+    const multiplier = isHotPocket ? 3 : 1;
+
+    if (isHotPocket) {
+      engine.hotPocket.active = false;
+      soundRef.current.playHotPocketChime();
+      spawnParticles(ball.x, ball.y, '#fbbf24', 28);
+    } else {
+      spawnParticles(ball.x, ball.y, SNOOKER_COLORS[ball.type]?.hex || '#fff');
+    }
+
+    // Play ascending pentatonic chime scaled to the length of the break
+    const streakStep = engine.potLog.length + 1;
+    soundRef.current.playPocketDrop(SNOOKER_COLORS[ball.type]?.value || 1, streakStep);
 
     const actualReds = countActiveReds(engine);
     engine.redsRemaining = actualReds;
@@ -921,7 +995,8 @@ export default function SnookongGame() {
     if (engine.phase === 'CLEARANCE') {
       const expectedType = CLEARANCE_SEQUENCE[engine.clearanceIndex];
       if (ball.type === expectedType) {
-        const pts = SNOOKER_COLORS[ball.type]?.value || 2;
+        const basePts = SNOOKER_COLORS[ball.type]?.value || 2;
+        const pts = basePts * multiplier;
         engine.score += pts;
         engine.currentBreak += pts;
         if (engine.currentBreak > engine.highestBreak) {
@@ -954,7 +1029,8 @@ export default function SnookongGame() {
           const nextTarget = CLEARANCE_SEQUENCE[engine.clearanceIndex];
           engine.targetState = nextTarget;
           setTargetBallType(nextTarget);
-          dockForReaim(`${SNOOKER_COLORS[ball.type].name} cleared — next: ${SNOOKER_COLORS[nextTarget].name}`);
+          const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! ' : '';
+          dockForReaim(`${hotPrefix}${SNOOKER_COLORS[ball.type].name} cleared — next: ${SNOOKER_COLORS[nextTarget].name}`);
         }
       } else {
         respotBall(ball);
@@ -968,8 +1044,9 @@ export default function SnookongGame() {
     // 2. REDS & NOMINATED COLORS PHASE
     if (engine.targetState === 'RED') {
       if (ball.type === 'RED') {
-        engine.score += 1;
-        engine.currentBreak += 1;
+        const pts = 1 * multiplier;
+        engine.score += pts;
+        engine.currentBreak += pts;
         if (engine.currentBreak > engine.highestBreak) {
           engine.highestBreak = engine.currentBreak;
         }
@@ -984,10 +1061,13 @@ export default function SnookongGame() {
         setHighestBreak(engine.highestBreak);
         setHistoryPots([...engine.potLog]);
 
+        const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! (+3) ' : '🔴 ';
         dockForReaim(
           actualReds === 0
-            ? '🔴 Final red potted — nominate any colour'
-            : '🔴 Red potted — pick a colour'
+            ? `${hotPrefix}Final red potted — nominate any colour`
+            : (engine.round >= 2 
+                ? `${hotPrefix}Red potted — pick colour or GOLD (+20)!` 
+                : `${hotPrefix}Red potted — pick a colour`)
         );
       } else {
         respotBall(ball);
@@ -997,7 +1077,8 @@ export default function SnookongGame() {
       }
     } else if (engine.targetState === 'ANY_COLOR') {
       if (ball.type !== 'RED') {
-        const pts = SNOOKER_COLORS[ball.type]?.value || 2;
+        const basePts = SNOOKER_COLORS[ball.type]?.value || 2;
+        const pts = basePts * multiplier;
         engine.score += pts;
         engine.currentBreak += pts;
         if (engine.currentBreak > engine.highestBreak) {
@@ -1015,7 +1096,8 @@ export default function SnookongGame() {
           setCurrentBreak(engine.currentBreak);
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
-          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
+          const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! ' : '';
+          dockForReaim(`${hotPrefix}${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — back on red`);
         } else {
           engine.phase = 'CLEARANCE';
           engine.clearanceIndex = 0;
@@ -1026,12 +1108,14 @@ export default function SnookongGame() {
           setHighestBreak(engine.highestBreak);
           setHistoryPots([...engine.potLog]);
           soundRef.current.playPhaseTransition();
-          dockForReaim(`${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
+          const hotPrefix = isHotPocket ? '🔥 HOT POCKET 3X! ' : '';
+          dockForReaim(`${hotPrefix}${SNOOKER_COLORS[ball.type].name} potted (+${pts}) — Clearance begins: Yellow (+2)`);
         }
       } else {
         if (engine.currentShotTarget === 'RED') {
-          engine.score += 1;
-          engine.currentBreak += 1;
+          const pts = 1 * multiplier;
+          engine.score += pts;
+          engine.currentBreak += pts;
           if (engine.currentBreak > engine.highestBreak) {
             engine.highestBreak = engine.currentBreak;
           }
@@ -1086,7 +1170,7 @@ export default function SnookongGame() {
   useEffect(() => {
     const engine = engineRef.current;
     if (engine.gameState === 'ROUND_WALK' || engine.gameState === 'GAMEOVER') return;
-    if (!engine.balls || engine.balls.length === 0) return; // Prevent race-condition on initial mount
+    if (!engine.balls || engine.balls.length === 0) return;
 
     const actualReds = countActiveReds(engine);
     if (actualReds === 0 && (targetBallType === 'RED' || engine.targetState === 'RED')) {
@@ -1163,6 +1247,10 @@ export default function SnookongGame() {
   };
 
   const handlePointerDown = (e) => {
+    if (goldenBallBanner) {
+      setGoldenBallBanner(false);
+    }
+
     if (engineRef.current.gameState === 'ROUND_WALK') {
       startNextRound();
       return;
@@ -1229,7 +1317,6 @@ export default function SnookongGame() {
     }
   };
 
-  // Helper Drawing Functions placed before drawCanvas to avoid temporal dead zone errors
   const drawRingGirlParade = (ctx, engine) => {
     const p = engine.ringGirlWalkProgress || 0;
     const nextRnd = engine.round + 1;
@@ -1451,7 +1538,7 @@ export default function SnookongGame() {
     let hitBall = null;
     let hitPoint = null;
 
-    for (let d = 0; d < 620; d += step) {
+    for (let d = 0; d < 1400; d += step) {
       currX += vx * step;
       currY += vy * step;
 
@@ -1467,8 +1554,8 @@ export default function SnookongGame() {
 
       if (currY <= CUSHION_WIDTH + BALL_RADIUS) {
         currY = CUSHION_WIDTH + BALL_RADIUS;
-        vy = -vy;
         ctx.lineTo(currX, currY);
+        break;
       }
 
       for (const b of engine.balls) {
@@ -1490,7 +1577,9 @@ export default function SnookongGame() {
 
     if (hitPoint && hitBall) {
       ctx.save();
-      ctx.strokeStyle = hitBall.type === 'RED' ? '#22c55e' : '#eab308';
+      ctx.strokeStyle = hitBall.type === 'RED' 
+        ? '#22c55e' 
+        : (hitBall.type === 'GOLD' ? '#fbbf24' : '#eab308');
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(hitPoint.x, hitPoint.y, BALL_RADIUS, 0, Math.PI * 2);
@@ -1581,8 +1670,43 @@ export default function SnookongGame() {
       ctx.fill();
     });
 
-    // Pockets
-    engine.pockets.forEach(p => {
+    // Pockets with Timed 3X Hot Pocket Glow
+    engine.pockets.forEach((p, pIdx) => {
+      const isHot = engine.hotPocket && engine.hotPocket.active && engine.hotPocket.pocketIndex === pIdx;
+
+      if (isHot) {
+        const pulse = (Math.sin(Date.now() * 0.009) + 1) * 0.5;
+
+        // Radiant Outer Glow Rings
+        ctx.save();
+        ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + pulse * 0.5})`;
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 14 + pulse * 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, POCKET_RADIUS + 8 + pulse * 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, POCKET_RADIUS + 13 + pulse * 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 3X Beacon Label
+        ctx.save();
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '900 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const labelY = p.y < 400 ? p.y + 24 : p.y - 24;
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText('🔥 3X HOT', p.x, labelY);
+        ctx.restore();
+      }
+
       ctx.fillStyle = '#b45309';
       ctx.beginPath();
       ctx.arc(p.x, p.y, POCKET_RADIUS + 4, 0, Math.PI * 2);
@@ -1737,7 +1861,7 @@ Play on pottheblack.com/games/snookong`;
     };
   };
 
-  // Main Canvas & Simulation Lifecycle: Mounts once and never reracks on state change
+  // Dedicated Mount Lifecycle: Sets up game once and ensures stable simulation loop
   useEffect(() => {
     setupRack(1);
     const canvas = canvasRef.current;
@@ -1759,6 +1883,24 @@ Play on pottheblack.com/games/snookong`;
       }
 
       if (engine.gameState === 'GAMEOVER') return;
+
+      // Hot Pocket Multiplier Timer Management
+      if (cue.active && engine.gameState === 'PLAYING') {
+        if (!engine.hotPocket.active) {
+          engine.hotPocket.nextTriggerSteps = (engine.hotPocket.nextTriggerSteps || 450) - 1;
+          if (engine.hotPocket.nextTriggerSteps <= 0) {
+            engine.hotPocket.active = true;
+            engine.hotPocket.pocketIndex = Math.floor(Math.random() * engine.pockets.length);
+            engine.hotPocket.stepsRemaining = 600; // 10 seconds of 3x multiplier
+            engine.hotPocket.nextTriggerSteps = 900 + Math.floor(Math.random() * 600); // 15-25s delay
+          }
+        } else {
+          engine.hotPocket.stepsRemaining = (engine.hotPocket.stepsRemaining || 0) - 1;
+          if (engine.hotPocket.stepsRemaining <= 0) {
+            engine.hotPocket.active = false;
+          }
+        }
+      }
 
       const paddle = engine.paddle;
 
@@ -1972,14 +2114,14 @@ Play on pottheblack.com/games/snookong`;
           soundRef.current.playCushionThud();
         }
 
-        engine.pockets.forEach(pocket => {
+        engine.pockets.forEach((pocket, pIdx) => {
           const dist = Math.hypot(ball.x - pocket.x, ball.y - pocket.y);
           if (dist < OBJECT_POCKET_CAPTURE) {
             const toPocketX = pocket.x - ball.x;
             const toPocketY = pocket.y - ball.y;
             const approaching = ball.vx * toPocketX + ball.vy * toPocketY >= 0;
             if (approaching || dist < OBJECT_POCKET_CAPTURE * 0.55) {
-              handlePotBall(ball);
+              handlePotBall(ball, pIdx);
             }
           }
         });
@@ -2312,6 +2454,29 @@ Play on pottheblack.com/games/snookong`;
             className="w-full h-full object-contain block cursor-crosshair touch-none"
           />
 
+          {goldenBallBanner && (
+            <div className="absolute top-7 left-3 right-3 bg-amber-950/95 border-2 border-amber-400 text-amber-200 px-3 py-2.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center justify-between z-30 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-start space-x-2">
+                <Sparkles size={18} className="text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="text-left">
+                  <div className="text-xs font-black text-amber-300 uppercase tracking-wide">
+                    Golden Ball Unlocked (+20 Pts)!
+                  </div>
+                  <div className="text-[10px] text-amber-100/90 leading-snug mt-0.5">
+                    Sink any <span className="text-rose-400 font-bold">RED</span> first, then nominate the <span className="text-amber-300 font-bold">GOLD BALL</span> above the Black for massive bonus points!
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGoldenBallBanner(false)}
+                className="ml-2 p-1 text-amber-400 hover:text-white rounded"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
+
           {foulBanner && (
             <div className="absolute top-8 left-3 right-3 bg-rose-950/95 border border-rose-500 text-rose-200 px-2 py-1.5 rounded-lg text-center text-xs font-bold shadow-2xl backdrop-blur-md flex items-center justify-center space-x-1.5 z-20">
               <ShieldAlert size={14} className="text-rose-400 shrink-0" />
@@ -2324,7 +2489,7 @@ Play on pottheblack.com/games/snookong`;
             </div>
           )}
 
-          {potToast && !foulBanner && (
+          {potToast && !foulBanner && !goldenBallBanner && (
             <div className="absolute top-8 left-3 right-3 bg-emerald-950/95 border border-emerald-500 text-emerald-200 px-2 py-1.5 rounded-lg text-center text-xs font-bold shadow-2xl backdrop-blur-md flex items-center justify-center space-x-1.5 z-20">
               <Trophy size={14} className="text-emerald-400 shrink-0" />
               <span>{potToast}</span>
@@ -2477,7 +2642,13 @@ Play on pottheblack.com/games/snookong`;
                 <strong className="text-rose-400">First-Contact Rule:</strong> On every shot, the cue ball must make its <strong>first ball contact</strong> with an active ball on. Once legal first contact is established, secondary cannons into other balls are completely legal.
               </li>
               <li>
-                <strong className="text-amber-300">The 20-Point Golden Ball (Round 2+):</strong> In Round 2 and above, the sparkling Gold Ball sits atop the Black. Whenever you are on <strong>ANY COLOR</strong>, you can nominate the Golden Ball for a huge 20-point pot! Striking or potting it when on Red or during clearance incurs a 7-point foul.
+                <strong className="text-amber-300">3X Hot Pockets:</strong> Watch for pockets that randomly ignite with a golden neon halo for 10 seconds. Sinking any active ball into a Hot Pocket multiplies all points by $3\times$!
+              </li>
+              <li>
+                <strong className="text-yellow-400">Ascending Break Scale:</strong> Consecutive pots climb an ascending musical pentatonic scale, ramping up audio intensity with every step of the break.
+              </li>
+              <li>
+                <strong className="text-amber-300">The 20-Point Golden Ball (Round 2+):</strong> In Round 2 and above, the sparkling Gold Ball sits atop the Black. Whenever you are on <strong>ANY COLOR</strong>, nominate the Golden Ball for a huge 20-point pot (or 60 points in a Hot Pocket!). Striking or potting it when on Red or during clearance incurs a 7-point foul.
               </li>
               <li>
                 <strong className="text-emerald-400">Round Progression:</strong> Clear all 10 reds and all 6 colors to trigger the Crucible Ring Girl Round Walk, carry your break forward, and unlock the next championship round!
